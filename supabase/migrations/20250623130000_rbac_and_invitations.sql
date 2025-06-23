@@ -3,16 +3,42 @@ CREATE TYPE company_role AS ENUM ('owner', 'admin', 'member');
 CREATE TYPE project_role AS ENUM ('admin', 'editor', 'viewer');
 
 -- Step 2: Alter tables to use the new types
--- First, ensure existing data is compatible
+-- First, drop any policies that depend on the role column
+DROP POLICY IF EXISTS "Company owners can update their companies" ON companies;
+DROP POLICY IF EXISTS "Company admins can update their companies" ON companies;
+DROP POLICY IF EXISTS "Users can view relevant audit logs" ON audit_logs;
+DROP POLICY IF EXISTS "Project admins can manage projects" ON projects;
+DROP POLICY IF EXISTS "Project members can view their projects" ON projects;
+DROP POLICY IF EXISTS "Company members can create projects" ON projects;
+DROP POLICY IF EXISTS "Project admins can manage agents" ON agents;
+DROP POLICY IF EXISTS "Project members can view agents" ON agents;
+DROP POLICY IF EXISTS "Project admins can manage transfers" ON transfers;
+DROP POLICY IF EXISTS "Project members can view transfers" ON transfers;
+DROP POLICY IF EXISTS "Users can create transfer files for their projects" ON transfer_files;
+DROP POLICY IF EXISTS "Users can view transfer files for their projects" ON transfer_files;
+DROP POLICY IF EXISTS "Users can update their own transfer files" ON transfer_files;
+DROP POLICY IF EXISTS "Users can delete their own transfer files" ON transfer_files;
+DROP POLICY IF EXISTS "Users can update their project's transfer files" ON transfer_files;
+DROP POLICY IF EXISTS "Users can update their own profile" ON user_profiles;
+
+-- Ensure existing data is compatible
 UPDATE company_members SET role = 'member' WHERE role NOT IN ('owner', 'admin', 'member');
 UPDATE project_members SET role = 'viewer' WHERE role NOT IN ('admin', 'editor', 'viewer');
 
 -- Now alter the columns
 ALTER TABLE company_members
+  ALTER COLUMN role DROP DEFAULT;
+ALTER TABLE company_members
   ALTER COLUMN role SET DATA TYPE company_role USING role::company_role;
+ALTER TABLE company_members
+  ALTER COLUMN role SET DEFAULT 'member'::company_role;
 
 ALTER TABLE project_members
+  ALTER COLUMN role DROP DEFAULT;
+ALTER TABLE project_members
   ALTER COLUMN role SET DATA TYPE project_role USING role::project_role;
+ALTER TABLE project_members
+  ALTER COLUMN role SET DEFAULT 'viewer'::project_role;
 
 -- Step 3: Create the invitations table
 CREATE TABLE invitations (
@@ -28,11 +54,13 @@ CREATE TABLE invitations (
   expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '72 hours'),
   accepted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT unique_pending_invite_per_company UNIQUE (company_id, invitee_email, status) 
-    DEFERRABLE INITIALLY DEFERRED 
-    WHERE (status = 'pending')
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Create partial unique index for pending invitations
+CREATE UNIQUE INDEX unique_pending_invite_per_company 
+ON invitations(company_id, invitee_email) 
+WHERE status = 'pending';
 
 -- Create indexes
 CREATE INDEX idx_invitations_token ON invitations(token) WHERE status = 'pending';
@@ -131,7 +159,7 @@ ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE company_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+-- user_profiles already has RLS enabled
 
 -- Step 7: RLS Policies for companies table
 CREATE POLICY "Members can view their company"
@@ -160,7 +188,6 @@ CREATE POLICY "Members can view company members"
 
 CREATE POLICY "Admins can manage company members"
   ON company_members FOR INSERT
-  USING (get_company_role(company_id) IN ('owner', 'admin'))
   WITH CHECK (get_company_role(company_id) IN ('owner', 'admin'));
 
 CREATE POLICY "Admins can update company members"
@@ -336,3 +363,217 @@ $$;
 -- Step 15: Update triggers
 CREATE TRIGGER update_invitations_updated_at BEFORE UPDATE ON invitations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Step 16: Re-create company policies that were dropped
+CREATE POLICY "Company owners can update their companies"
+  ON companies FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM company_members cm
+      WHERE cm.company_id = companies.id
+      AND cm.user_id = auth.uid()
+      AND cm.role = 'owner'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM company_members cm
+      WHERE cm.company_id = companies.id
+      AND cm.user_id = auth.uid()
+      AND cm.role = 'owner'
+    )
+  );
+
+CREATE POLICY "Company admins can update their companies"
+  ON companies FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM company_members cm
+      WHERE cm.company_id = companies.id
+      AND cm.user_id = auth.uid()
+      AND cm.role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM company_members cm
+      WHERE cm.company_id = companies.id
+      AND cm.user_id = auth.uid()
+      AND cm.role = 'admin'
+    )
+  );
+
+-- Re-create audit logs policy
+CREATE POLICY "Users can view relevant audit logs" ON audit_logs
+  FOR SELECT USING (
+    -- Can view audit logs for their company
+    EXISTS (
+      SELECT 1 FROM company_members cm
+      WHERE cm.company_id = audit_logs.company_id
+      AND cm.user_id = auth.uid()
+      AND cm.role IN ('owner', 'admin')
+    )
+  );
+
+-- Re-create project policies
+CREATE POLICY "Project members can view their projects" ON projects
+  FOR SELECT USING (
+    auth.uid() IN (
+      SELECT cm.user_id FROM company_members cm 
+      WHERE cm.company_id = projects.company_id
+    )
+    OR auth.uid() IN (
+      SELECT pm.user_id FROM project_members pm 
+      WHERE pm.project_id = projects.id
+    )
+  );
+
+CREATE POLICY "Company members can create projects" ON projects
+  FOR INSERT WITH CHECK (
+    auth.uid() IN (
+      SELECT cm.user_id FROM company_members cm 
+      WHERE cm.company_id = projects.company_id
+      AND cm.role IN ('owner', 'admin')
+    )
+  );
+
+CREATE POLICY "Project admins can manage projects" ON projects
+  FOR UPDATE USING (
+    auth.uid() IN (
+      SELECT pm.user_id FROM project_members pm 
+      WHERE pm.project_id = projects.id
+      AND pm.role = 'admin'
+    )
+    OR auth.uid() IN (
+      SELECT cm.user_id FROM company_members cm 
+      WHERE cm.company_id = projects.company_id
+      AND cm.role IN ('owner', 'admin')
+    )
+  );
+
+-- Re-create agent policies
+CREATE POLICY "Project members can view agents" ON agents
+  FOR SELECT USING (
+    auth.uid() IN (
+      SELECT pm.user_id FROM project_members pm
+      WHERE pm.project_id = agents.project_id
+    )
+    OR auth.uid() IN (
+      SELECT cm.user_id FROM company_members cm
+      JOIN projects p ON p.company_id = cm.company_id
+      WHERE p.id = agents.project_id
+    )
+  );
+
+CREATE POLICY "Project admins can manage agents" ON agents
+  FOR ALL USING (
+    auth.uid() IN (
+      SELECT pm.user_id FROM project_members pm
+      WHERE pm.project_id = agents.project_id
+      AND pm.role IN ('admin', 'editor')
+    )
+    OR auth.uid() IN (
+      SELECT cm.user_id FROM company_members cm
+      JOIN projects p ON p.company_id = cm.company_id
+      WHERE p.id = agents.project_id
+      AND cm.role IN ('owner', 'admin')
+    )
+  );
+
+-- Re-create transfer policies
+CREATE POLICY "Project members can view transfers" ON transfers
+  FOR SELECT USING (
+    auth.uid() IN (
+      SELECT pm.user_id FROM project_members pm
+      WHERE pm.project_id = transfers.project_id
+    )
+    OR auth.uid() IN (
+      SELECT cm.user_id FROM company_members cm
+      JOIN projects p ON p.company_id = cm.company_id
+      WHERE p.id = transfers.project_id
+    )
+  );
+
+CREATE POLICY "Project admins can manage transfers" ON transfers
+  FOR ALL USING (
+    auth.uid() IN (
+      SELECT pm.user_id FROM project_members pm
+      WHERE pm.project_id = transfers.project_id
+      AND pm.role IN ('admin', 'editor')
+    )
+    OR auth.uid() IN (
+      SELECT cm.user_id FROM company_members cm
+      JOIN projects p ON p.company_id = cm.company_id
+      WHERE p.id = transfers.project_id
+      AND cm.role IN ('owner', 'admin')
+    )
+  );
+
+-- Re-create transfer_files policies
+CREATE POLICY "Users can view transfer files for their projects" ON transfer_files
+  FOR SELECT USING (
+    auth.uid() IN (
+      SELECT pm.user_id FROM project_members pm
+      JOIN transfers t ON t.id = transfer_files.transfer_id
+      WHERE pm.project_id = t.project_id
+    )
+    OR auth.uid() IN (
+      SELECT cm.user_id FROM company_members cm
+      JOIN projects p ON p.company_id = cm.company_id
+      JOIN transfers t ON t.project_id = p.id
+      WHERE t.id = transfer_files.transfer_id
+    )
+  );
+
+CREATE POLICY "Users can create transfer files for their projects" ON transfer_files
+  FOR INSERT WITH CHECK (
+    auth.uid() IN (
+      SELECT pm.user_id FROM project_members pm
+      JOIN transfers t ON t.id = transfer_files.transfer_id
+      WHERE pm.project_id = t.project_id
+      AND pm.role IN ('admin', 'editor')
+    )
+    OR auth.uid() IN (
+      SELECT cm.user_id FROM company_members cm
+      JOIN projects p ON p.company_id = cm.company_id
+      JOIN transfers t ON t.project_id = p.id
+      WHERE t.id = transfer_files.transfer_id
+      AND cm.role IN ('owner', 'admin')
+    )
+  );
+
+CREATE POLICY "Users can update their own transfer files" ON transfer_files
+  FOR UPDATE USING (
+    auth.uid() IN (
+      SELECT pm.user_id FROM project_members pm
+      JOIN transfers t ON t.id = transfer_files.transfer_id
+      WHERE pm.project_id = t.project_id
+      AND pm.role IN ('admin', 'editor')
+    )
+    OR auth.uid() IN (
+      SELECT cm.user_id FROM company_members cm
+      JOIN projects p ON p.company_id = cm.company_id
+      JOIN transfers t ON t.project_id = p.id
+      WHERE t.id = transfer_files.transfer_id
+      AND cm.role IN ('owner', 'admin')
+    )
+  );
+
+CREATE POLICY "Users can delete their own transfer files" ON transfer_files
+  FOR DELETE USING (
+    auth.uid() IN (
+      SELECT pm.user_id FROM project_members pm
+      JOIN transfers t ON t.id = transfer_files.transfer_id
+      WHERE pm.project_id = t.project_id
+      AND pm.role IN ('admin', 'editor')
+    )
+    OR auth.uid() IN (
+      SELECT cm.user_id FROM company_members cm
+      JOIN projects p ON p.company_id = cm.company_id
+      JOIN transfers t ON t.project_id = p.id
+      WHERE t.id = transfer_files.transfer_id
+      AND cm.role IN ('owner', 'admin')
+    )
+  );
+
+-- Service role policy already exists from previous migration

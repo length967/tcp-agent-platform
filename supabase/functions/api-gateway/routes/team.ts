@@ -78,6 +78,7 @@ export async function handleTeam(req: Request, ctx: Context): Promise<Response> 
         joined_at,
         user:user_profiles!inner (
           id,
+          email,
           full_name,
           avatar_url,
           is_suspended
@@ -101,17 +102,11 @@ export async function handleTeam(req: Request, ctx: Context): Promise<Response> 
       throw new ApiError(500, `Failed to fetch invitations: ${invitationsError.message}`)
     }
     
-    // Get emails for members
-    const memberIds = members?.map(m => m.user_id) || []
-    const { data: userData } = await supabase.auth.admin.listUsers()
-    
-    const enrichedMembers = members?.map(member => {
-      const authUser = userData?.users.find(u => u.id === member.user_id)
-      return {
-        ...member,
-        email: authUser?.email || 'Unknown',
-      }
-    })
+    // Email is now included from user_profiles
+    const enrichedMembers = members?.map(member => ({
+      ...member,
+      email: member.user?.email || 'Unknown',
+    }))
     
     return new Response(
       JSON.stringify({
@@ -216,6 +211,10 @@ export async function handleTeam(req: Request, ctx: Context): Promise<Response> 
         throw new ApiError(400, 'Token is required')
       }
       
+      // Additional rate limiting for invitation acceptance (prevent brute force)
+      // This is in addition to the general rate limiting
+      // TODO: Implement specific rate limiting for this endpoint
+      
       const { data, error } = await supabase
         .rpc('accept_invitation', {
           p_token: token,
@@ -255,6 +254,10 @@ export async function handleTeam(req: Request, ctx: Context): Promise<Response> 
       if (validatedData.role !== undefined) {
         if (!hasPermission(ctx.userPermissions || [], Permissions.MEMBERS_ROLE_CHANGE)) {
           throw new AuthorizationError('Insufficient permissions to change member roles')
+        }
+        // Prevent users from changing their own role
+        if (resourceId === user.id) {
+          throw new ApiError(400, 'Cannot change your own role')
         }
       }
       if (validatedData.is_suspended !== undefined) {

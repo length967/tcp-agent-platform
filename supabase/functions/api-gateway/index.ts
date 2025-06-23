@@ -8,7 +8,7 @@ import { handleTeam } from './routes/team.ts'
 import { composeMiddleware } from '../_shared/middleware.ts'
 import { withCors } from '../_shared/cors.ts'
 import { withSecurity } from '../_shared/security.ts'
-import { withUser } from '../_shared/auth/userAuth.ts'
+import { withUser, withTenant } from '../_shared/auth/userAuth.ts'
 import { withAgent } from '../_shared/auth/agentAuth.ts'
 import { withRateLimit } from '../_shared/rateLimit.ts'
 import { withAuditLog } from '../_shared/audit/middleware.ts'
@@ -29,6 +29,7 @@ serve(async (req) => {
       withSecurity,
       withRateLimit,
       withUser,
+      withTenant,
       withAuditLog
     )
     

@@ -5,6 +5,7 @@ export interface Context {
   user?: any
   agent?: any
   tenant?: any
+  userPermissions?: string[]
   requestId: string
   startTime: number
   validatedBody?: any
