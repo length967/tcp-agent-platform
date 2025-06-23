@@ -5,6 +5,7 @@ import { handleAgents } from './routes/agents.ts'
 import { handleTelemetry } from './routes/telemetry.ts'
 import { handleTransfers } from './routes/transfers.ts'
 import { handleTeam } from './routes/team.ts'
+import { handleProjectMembers } from './routes/project-members.ts'
 import { composeMiddleware } from '../_shared/middleware.ts'
 import { withCors } from '../_shared/cors.ts'
 import { withSecurity } from '../_shared/security.ts'
@@ -49,7 +50,10 @@ serve(async (req) => {
     )
     
     // Route to appropriate handler with middleware
-    if (path.startsWith('/api-gateway/projects')) {
+    if (path.startsWith('/api-gateway/v1/projects') && path.includes('/members')) {
+      return await userApiMiddleware(req, handleProjectMembers)
+    }
+    else if (path.startsWith('/api-gateway/projects')) {
       return await userApiMiddleware(req, handleProjects)
     } 
     else if (path.startsWith('/api-gateway/agents')) {

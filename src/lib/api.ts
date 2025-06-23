@@ -55,6 +55,76 @@ async function apiRequest<T = any>(
  * API client for the TCP Agent Platform
  */
 export const api = {
+  // Raw client for custom requests
+  client: {
+    get: async (endpoint: string) => {
+      const response = await apiRequest(endpoint)
+      return {
+        ok: true,
+        json: async () => response
+      }
+    },
+    post: async (endpoint: string, options: { json?: any } = {}) => {
+      try {
+        const response = await apiRequest(endpoint, {
+          method: 'POST',
+          body: options.json ? JSON.stringify(options.json) : undefined
+        })
+        return {
+          ok: true,
+          json: async () => response
+        }
+      } catch (error) {
+        if (error instanceof ApiError) {
+          return {
+            ok: false,
+            json: async () => ({ error: error.message })
+          }
+        }
+        throw error
+      }
+    },
+    patch: async (endpoint: string, options: { json?: any } = {}) => {
+      try {
+        const response = await apiRequest(endpoint, {
+          method: 'PATCH',
+          body: options.json ? JSON.stringify(options.json) : undefined
+        })
+        return {
+          ok: true,
+          json: async () => response
+        }
+      } catch (error) {
+        if (error instanceof ApiError) {
+          return {
+            ok: false,
+            json: async () => ({ error: error.message })
+          }
+        }
+        throw error
+      }
+    },
+    delete: async (endpoint: string) => {
+      try {
+        const response = await apiRequest(endpoint, {
+          method: 'DELETE'
+        })
+        return {
+          ok: true,
+          json: async () => response
+        }
+      } catch (error) {
+        if (error instanceof ApiError) {
+          return {
+            ok: false,
+            json: async () => ({ error: error.message })
+          }
+        }
+        throw error
+      }
+    }
+  },
+  
   // Projects
   projects: {
     list: () => apiRequest<{ projects: any[] }>('/projects'),

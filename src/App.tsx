@@ -9,6 +9,8 @@ import { SignupForm } from '@/components/auth/SignupForm'
 import { VerifyEmail } from '@/components/auth/VerifyEmail'
 import { ProjectProvider } from '@/contexts/ProjectContext'
 import DashboardHome from '@/pages/dashboard/DashboardHome'
+import Projects from '@/pages/dashboard/Projects'
+import ProjectDetails from '@/pages/dashboard/ProjectDetails'
 import Agents from '@/pages/dashboard/Agents'
 import Transfers from '@/pages/dashboard/Transfers'
 import Team from '@/pages/dashboard/Team'
@@ -42,6 +44,8 @@ function App() {
               {/* Dashboard routes */}
               <Route path="/dashboard" element={<DashboardLayout />}>
                 <Route index element={<DashboardHome />} />
+                <Route path="projects" element={<Projects />} />
+                <Route path="projects/:projectId" element={<ProjectDetails />} />
                 <Route path="agents" element={<Agents />} />
                 <Route path="transfers" element={<Transfers />} />
                 <Route path="team" element={<Team />} />

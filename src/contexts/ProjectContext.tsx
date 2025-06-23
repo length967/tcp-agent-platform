@@ -5,9 +5,11 @@ import { api } from '@/lib/api'
 interface Project {
   id: string
   name: string
-  tier: string
-  created_at: string
+  slug: string
+  company_id: string
   settings?: Record<string, any>
+  created_at: string
+  updated_at: string
 }
 
 interface ProjectContextValue {
@@ -74,4 +76,8 @@ export function useProject() {
     throw new Error('useProject must be used within a ProjectProvider')
   }
   return context
+}
+
+export function useProjectContext() {
+  return useProject()
 }

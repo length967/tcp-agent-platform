@@ -1,15 +1,8 @@
 import { useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '@/components/theme-provider'
-import { useProject } from '@/contexts/ProjectContext'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { ProjectSwitcher } from '@/components/projects/ProjectSwitcher'
 import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -25,10 +18,12 @@ import {
   Sun,
   Moon,
   Bell,
+  Folder,
 } from 'lucide-react'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Projects', href: '/dashboard/projects', icon: Folder },
   { name: 'Agents', href: '/dashboard/agents', icon: Server },
   { name: 'Transfers', href: '/dashboard/transfers', icon: BarChart3 },
   { name: 'Team', href: '/dashboard/team', icon: Users },
@@ -41,7 +36,6 @@ export default function DashboardLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
-  const { currentProject, projects, setCurrentProject } = useProject()
 
   // Get current user
   const { data: user } = useQuery({
@@ -132,6 +126,7 @@ export default function DashboardLayout() {
           </div>
           
           <div className="flex items-center gap-4">
+            <ProjectSwitcher />
             <button
               onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
               aria-label="Theme toggle"
@@ -145,27 +140,6 @@ export default function DashboardLayout() {
               <Bell className="w-5 h-5" />
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full"></span>
             </button>
-            
-            {projects && projects.length > 0 && (
-              <Select 
-                value={currentProject?.id} 
-                onValueChange={(projectId) => {
-                  const project = projects.find(p => p.id === projectId)
-                  if (project) setCurrentProject(project)
-                }}
-              >
-                <SelectTrigger className="w-[180px] h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
           </div>
         </header>
 

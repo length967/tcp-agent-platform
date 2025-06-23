@@ -229,8 +229,8 @@ export default function Team() {
     )
   }
 
-  const members = data?.members || []
-  const invitations = data?.invitations || []
+  const members: TeamMember[] = data?.members || []
+  const invitations: Invitation[] = data?.invitations || []
 
   return (
     <div className="container mx-auto py-6 space-y-8">
