@@ -14,12 +14,42 @@ export class ApiError extends Error {
 }
 
 /**
+ * Authentication Error class
+ */
+export class AuthenticationError extends ApiError {
+  constructor(message: string, details?: any) {
+    super(401, message, 'AUTHENTICATION_ERROR', details)
+    this.name = 'AuthenticationError'
+  }
+}
+
+/**
  * Authorization Error class
  */
 export class AuthorizationError extends ApiError {
   constructor(message: string, details?: any) {
     super(403, message, 'AUTHORIZATION_ERROR', details)
     this.name = 'AuthorizationError'
+  }
+}
+
+/**
+ * Bad Request Error class
+ */
+export class BadRequestError extends ApiError {
+  constructor(message: string, details?: any) {
+    super(400, message, 'BAD_REQUEST', details)
+    this.name = 'BadRequestError'
+  }
+}
+
+/**
+ * Not Found Error class
+ */
+export class NotFoundError extends ApiError {
+  constructor(message: string, details?: any) {
+    super(404, message, 'NOT_FOUND', details)
+    this.name = 'NotFoundError'
   }
 }
 

@@ -6,6 +6,7 @@ import { handleTelemetry } from './routes/telemetry.ts'
 import { handleTransfers } from './routes/transfers.ts'
 import { handleTeam } from './routes/team.ts'
 import { handleProjectMembers } from './routes/project-members.ts'
+import { handleUserSettings } from './routes/user-settings.ts'
 import { composeMiddleware } from '../_shared/middleware.ts'
 import { withCors } from '../_shared/cors.ts'
 import { withSecurity } from '../_shared/security.ts'
@@ -91,6 +92,17 @@ serve(async (req) => {
     else if (path.startsWith('/api-gateway/team')) {
       // Team endpoints require user auth
       return await userApiMiddleware(req, handleTeam)
+    }
+    else if (path.startsWith('/api-gateway/v1/user')) {
+      // User settings endpoints require user auth but not tenant context
+      const userOnlyMiddleware = composeMiddleware(
+        withCors,
+        withSecurity,
+        withRateLimit,
+        withUser,
+        withAuditLog
+      )
+      return await userOnlyMiddleware(req, handleUserSettings)
     }
     else {
       return new Response(

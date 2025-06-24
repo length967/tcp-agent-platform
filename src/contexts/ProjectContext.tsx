@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { SecureStorage } from '@/lib/secure-storage'
 
 interface Project {
   id: string
@@ -40,16 +41,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [projects, currentProject])
 
-  // Save current project to localStorage
+  // Save current project to secure storage
   useEffect(() => {
     if (currentProject) {
-      localStorage.setItem('currentProjectId', currentProject.id)
+      SecureStorage.setItem('currentProjectId', currentProject.id)
     }
   }, [currentProject])
 
   // Load saved project on mount
   useEffect(() => {
-    const savedProjectId = localStorage.getItem('currentProjectId')
+    const savedProjectId = SecureStorage.getItem('currentProjectId')
     if (savedProjectId && projects.length > 0) {
       const savedProject = projects.find(p => p.id === savedProjectId)
       if (savedProject) {

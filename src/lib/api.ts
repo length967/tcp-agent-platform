@@ -1,6 +1,10 @@
 import { supabase } from './supabase'
+import { createAuthenticatedFetch, tokenRefreshManager } from './auth-interceptor'
 
 const API_URL = import.meta.env.VITE_SUPABASE_URL + '/functions/v1'
+
+// Create authenticated fetch instance
+const authenticatedFetch = createAuthenticatedFetch(fetch)
 
 export class ApiError extends Error {
   constructor(
@@ -29,7 +33,7 @@ async function apiRequest<T = any>(
   
   const url = `${API_URL}/api-gateway${endpoint}`
   
-  const response = await fetch(url, {
+  const response = await authenticatedFetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -41,6 +45,13 @@ async function apiRequest<T = any>(
   const data = await response.json()
   
   if (!response.ok) {
+    // Handle authentication errors
+    if (response.status === 401) {
+      // Session expired or invalid - sign out
+      await supabase.auth.signOut()
+      window.location.href = '/auth/login'
+    }
+    
     throw new ApiError(
       response.status,
       data.error?.message || 'API request failed',

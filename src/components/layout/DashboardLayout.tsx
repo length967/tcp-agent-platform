@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useTheme } from '@/components/theme-provider'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ProjectSwitcher } from '@/components/projects/ProjectSwitcher'
-import { supabase } from '@/lib/supabase'
-import { useQuery } from '@tanstack/react-query'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   Activity,
   Home,
@@ -34,22 +33,8 @@ const navigation = [
 export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
-  const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
-
-  // Get current user
-  const { data: user } = useQuery({
-    queryKey: ['currentUser'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      return user
-    }
-  })
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    navigate('/login')
-  }
+  const { user, signOut } = useAuth()
 
   const currentPage = navigation.find(item => 
     location.pathname === item.href || 
@@ -100,7 +85,7 @@ export default function DashboardLayout() {
           <div className="flex-1">
             <p className="text-sm font-medium truncate">{user?.email}</p>
             <button
-              onClick={handleSignOut}
+              onClick={signOut}
               className="text-xs text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 flex items-center gap-1 mt-1"
             >
               <LogOut className="w-4 h-4" />

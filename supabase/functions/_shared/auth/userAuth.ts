@@ -1,5 +1,5 @@
 import { Middleware } from '../types.ts'
-import { AuthenticationError, AuthorizationError } from '../utils/errors.ts'
+import { AuthenticationError, AuthorizationError } from '../errors.ts'
 import { 
   Permissions, 
   Permission, 
