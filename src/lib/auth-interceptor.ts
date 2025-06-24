@@ -4,6 +4,10 @@ import { SecureStorage } from './secure-storage'
 interface SessionConfig {
   timeoutMinutes: number
   lastActivity?: number
+  isCompanyEnforced?: boolean
+  companyTimeout?: number | null
+  userTimeout?: number | null
+  source?: 'company' | 'user' | 'company_default' | 'system'
 }
 
 /**
@@ -143,12 +147,36 @@ class TokenRefreshManager {
    */
   private async loadSessionConfig() {
     try {
-      // Get user session timeout from database
-      const { data, error } = await supabase
-        .rpc('get_user_session_timeout', { user_id: (await this.getSession())?.user?.id })
+      const session = await this.getSession()
+      if (!session) return
       
-      if (!error && data) {
-        this.sessionConfig.timeoutMinutes = data
+      // Fetch session configuration from backend
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/session/config`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (response.ok) {
+        const config = await response.json()
+        this.sessionConfig = {
+          ...this.sessionConfig,
+          timeoutMinutes: config.timeoutMinutes,
+          isCompanyEnforced: config.isCompanyEnforced,
+          companyTimeout: config.companyTimeout,
+          userTimeout: config.userTimeout,
+          source: config.source,
+        }
+        
+        // Store config for offline access
+        SecureStorage.setItem('sessionConfig', this.sessionConfig)
+      } else {
+        // Fallback to cached config if available
+        const cachedConfig = SecureStorage.getJsonItem<SessionConfig>('sessionConfig')
+        if (cachedConfig) {
+          this.sessionConfig = { ...this.sessionConfig, ...cachedConfig }
+        }
       }
       
       // Load last activity from storage
@@ -160,6 +188,11 @@ class TokenRefreshManager {
       }
     } catch (error) {
       console.warn('Failed to load session config:', error)
+      // Fallback to cached config
+      const cachedConfig = SecureStorage.getJsonItem<SessionConfig>('sessionConfig')
+      if (cachedConfig) {
+        this.sessionConfig = { ...this.sessionConfig, ...cachedConfig }
+      }
     }
   }
   
@@ -229,6 +262,27 @@ class TokenRefreshManager {
     await supabase.auth.signOut()
     SecureStorage.clearSensitiveData()
     window.location.href = '/auth/login?reason=timeout'
+  }
+  
+  /**
+   * Get current session configuration
+   */
+  getSessionConfig(): SessionConfig {
+    return { ...this.sessionConfig }
+  }
+  
+  /**
+   * Refresh session configuration
+   */
+  async refreshConfig(): Promise<void> {
+    await this.loadSessionConfig()
+  }
+  
+  /**
+   * Manually trigger session timeout
+   */
+  async forceTimeout(): Promise<void> {
+    await this.handleSessionTimeout()
   }
 }
 

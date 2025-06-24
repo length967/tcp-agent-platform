@@ -261,6 +261,19 @@ export const api = {
       apiRequest<{ aggregates: any; agents: any[] }>(`/telemetry/project/${projectId}`)
   },
   
+  // Session Management
+  session: {
+    getConfig: () => 
+      apiRequest<{
+        timeoutMinutes: number
+        isCompanyEnforced: boolean
+        companyTimeout: number | null
+        userTimeout: number | null
+        source: 'company' | 'user' | 'company_default' | 'system'
+        lastActivity: string
+      }>('/session/config')
+  },
+  
   // Team Management
   team: {
     list: () => 

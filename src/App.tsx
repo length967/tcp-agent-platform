@@ -10,6 +10,7 @@ import { VerifyEmail } from '@/components/auth/VerifyEmail'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ProjectProvider } from '@/contexts/ProjectContext'
+import { SessionWarningModal, useSessionWarning } from '@/components/SessionWarningModal'
 import DashboardHome from '@/pages/dashboard/DashboardHome'
 import Projects from '@/pages/dashboard/Projects'
 import ProjectDetails from '@/pages/dashboard/ProjectDetails'
@@ -28,14 +29,12 @@ const queryClient = new QueryClient({
   },
 })
 
-function App() {
+function AppContent() {
+  const { showWarning, warningTime, handleExtend, handleDismiss } = useSessionWarning()
+  
   return (
-    <ThemeProvider defaultTheme="system" storageKey="tcp-agent-theme">
-      <QueryClientProvider client={queryClient}>
-        <Router>
-          <AuthProvider>
-            <ProjectProvider>
-              <Routes>
+    <>
+      <Routes>
               {/* Auth routes */}
               <Route path="/auth" element={<AuthLayout />}>
                 <Route path="login" element={<LoginForm />} />
@@ -60,7 +59,26 @@ function App() {
 
               {/* Default redirect */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
+      </Routes>
+      {showWarning && (
+        <SessionWarningModal
+          timeRemaining={warningTime}
+          onExtend={handleExtend}
+          onDismiss={handleDismiss}
+        />
+      )}
+    </>
+  )
+}
+
+function App() {
+  return (
+    <ThemeProvider defaultTheme="system" storageKey="tcp-agent-theme">
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <AuthProvider>
+            <ProjectProvider>
+              <AppContent />
             </ProjectProvider>
           </AuthProvider>
         </Router>

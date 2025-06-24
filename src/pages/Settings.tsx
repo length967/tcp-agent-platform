@@ -24,7 +24,9 @@ import {
   Eye,
   EyeOff,
   Copy,
-  Calendar
+  Calendar,
+  AlertCircle,
+  Building2
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
@@ -102,6 +104,31 @@ export default function Settings() {
     current_password: '',
     new_password: '',
     confirm_password: ''
+  })
+  const [sessionConfig, setSessionConfig] = useState<{
+    timeoutMinutes: number
+    isCompanyEnforced: boolean
+    companyTimeout: number | null
+    userTimeout: number | null
+    source: string
+  } | null>(null)
+
+  // Fetch session configuration
+  useQuery({
+    queryKey: ['session', 'config'],
+    queryFn: async () => {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/session/config`, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+      if (!response.ok) throw new Error('Failed to fetch session config')
+      const data = await response.json()
+      setSessionConfig(data)
+      return data
+    },
+    enabled: !!session
   })
 
   // Fetch user preferences
@@ -787,29 +814,59 @@ export default function Settings() {
                 <CardDescription>Manage your security preferences</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Session Timeout</Label>
-                    <p className="text-sm text-muted-foreground">Automatically log out after inactivity</p>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Session Timeout</Label>
+                      <p className="text-sm text-muted-foreground">Automatically log out after inactivity</p>
+                    </div>
+                    <Select
+                      value={String(preferencesData?.session_timeout_minutes || sessionConfig?.timeoutMinutes || 30)}
+                      onValueChange={(value) => {
+                        updatePreferences.mutate({ session_timeout_minutes: parseInt(value) })
+                      }}
+                      disabled={sessionConfig?.isCompanyEnforced}
+                    >
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="15">15 minutes</SelectItem>
+                        <SelectItem value="30">30 minutes</SelectItem>
+                        <SelectItem value="60">1 hour</SelectItem>
+                        <SelectItem value="240">4 hours</SelectItem>
+                        <SelectItem value="1440">24 hours</SelectItem>
+                        <SelectItem value="10080">7 days</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <Select
-                    value={String(preferencesData?.session_timeout_minutes)}
-                    onValueChange={(value) => {
-                      updatePreferences.mutate({ session_timeout_minutes: parseInt(value) })
-                    }}
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="15">15 minutes</SelectItem>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="60">1 hour</SelectItem>
-                      <SelectItem value="240">4 hours</SelectItem>
-                      <SelectItem value="1440">24 hours</SelectItem>
-                      <SelectItem value="10080">7 days</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  
+                  {sessionConfig?.isCompanyEnforced && (
+                    <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 p-4">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                            Company Policy Enforced
+                          </p>
+                          <p className="text-sm text-amber-800 dark:text-amber-200">
+                            Your session timeout is set to {sessionConfig.companyTimeout} minutes by your company's security policy.
+                            This setting cannot be changed.
+                          </p>
+                          <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1 mt-2">
+                            <Building2 className="h-3 w-3" />
+                            Contact your company administrator to modify this policy
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!sessionConfig?.isCompanyEnforced && sessionConfig?.source === 'company_default' && (
+                    <p className="text-xs text-muted-foreground">
+                      Using company default of {sessionConfig.companyTimeout} minutes. You can customize this setting.
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>

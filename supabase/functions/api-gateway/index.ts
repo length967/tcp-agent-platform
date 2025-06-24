@@ -7,6 +7,7 @@ import { handleTransfers } from './routes/transfers.ts'
 import { handleTeam } from './routes/team.ts'
 import { handleProjectMembers } from './routes/project-members.ts'
 import { handleUserSettings } from './routes/user-settings.ts'
+import { handleSessionConfig } from './routes/session-config.ts'
 import { composeMiddleware } from '../_shared/middleware.ts'
 import { withCors } from '../_shared/cors.ts'
 import { withSecurity } from '../_shared/security.ts'
@@ -103,6 +104,17 @@ serve(async (req) => {
         withAuditLog
       )
       return await userOnlyMiddleware(req, handleUserSettings)
+    }
+    else if (path === '/api-gateway/session/config') {
+      // Session config endpoint requires user auth
+      const userOnlyMiddleware = composeMiddleware(
+        withCors,
+        withSecurity,
+        withRateLimit,
+        withUser,
+        withAuditLog
+      )
+      return await userOnlyMiddleware(req, handleSessionConfig)
     }
     else {
       return new Response(
