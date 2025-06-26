@@ -6,7 +6,7 @@ import { useProject } from '@/contexts/ProjectContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -50,6 +50,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useTimezone } from '@/contexts/TimezoneContext'
+import { 
+  LongDateTime, 
+  RelativeTime, 
+  ShortDateTime,
+  BusinessHoursIndicator 
+} from '@/components/ui/timezone-display'
 
 interface Transfer {
   id: string
@@ -479,10 +486,12 @@ export default function Transfers() {
                       </TableCell>
                       <TableCell>{transfer.transfer_files?.length || 0}</TableCell>
                       <TableCell>
-                        {transfer.completed_at 
-                          ? formatDistanceToNow(new Date(transfer.completed_at), { addSuffix: true })
-                          : '—'
-                        }
+                        {transfer.completed_at ? (
+                          <RelativeTime 
+                            date={transfer.completed_at} 
+                            showTooltip={true}
+                          />
+                        ) : '—'}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -720,14 +729,14 @@ export default function Transfers() {
                 <div>
                   <p className="text-gray-500">Created</p>
                   <p className="font-medium">
-                    {format(new Date(selectedTransfer.created_at), 'PPpp')}
+                    <LongDateTime date={selectedTransfer.created_at} />
                   </p>
                 </div>
                 {selectedTransfer.completed_at && (
                   <div>
                     <p className="text-gray-500">Completed</p>
                     <p className="font-medium">
-                      {format(new Date(selectedTransfer.completed_at), 'PPpp')}
+                      <LongDateTime date={selectedTransfer.completed_at} />
                     </p>
                   </div>
                 )}

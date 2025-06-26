@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { SubscriptionUpgradePrompt } from '@/components/ui/subscription-gate'
 import {
   Server,
   FileText,
@@ -10,12 +12,22 @@ import {
   TrendingUp,
   ShieldCheck,
   CreditCard,
+  Brain,
+  Lightbulb,
+  Zap,
+  Crown,
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { LineChart, Line, ResponsiveContainer } from 'recharts'
 import { useProjectRealtime } from '@/hooks/useRealtime'
 import { useProject } from '@/contexts/ProjectContext'
+import { useTimezone } from '@/contexts/TimezoneContext'
+import { 
+  ShortDateTime, 
+  RelativeTime, 
+  BusinessHoursIndicator 
+} from '@/components/ui/timezone-display'
 
 // Metric card component
 function MetricCard({
@@ -89,6 +101,7 @@ function MetricCard({
 
 export default function DashboardHome() {
   const [currentTime, setCurrentTime] = useState(new Date())
+  const { formatDateTime } = useTimezone()
 
   // Update time every minute
   useEffect(() => {
@@ -164,7 +177,7 @@ export default function DashboardHome() {
             Welcome back to TCP Agent Platform
           </h2>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-            {format(currentTime, 'EEEE, MMMM d, yyyy • h:mm a')}
+            {formatDateTime(currentTime, 'long')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -209,21 +222,15 @@ export default function DashboardHome() {
           subtext="Last 30 days"
           chart={{ data: performanceData, color: "#f97316" }}
         />
-        
-        <MetricCard
-          title="SLA Compliance"
-          icon={ShieldCheck}
-          iconColor="bg-yellow-600/10 text-yellow-500"
-          value="99.8%"
-          subtext="This quarter"
-        />
-        
-        <MetricCard
-          title="Monthly Spend"
-          icon={CreditCard}
-          iconColor="bg-sky-600/10 text-sky-500"
-          value="$12.4k"
-          subtext="Budget usage 68%"
+      </section>
+
+      {/* Smart Features Preview */}
+      <section className="animate-in fade-in slide-in-from-bottom-3 duration-700 delay-150">
+        <SubscriptionUpgradePrompt
+          requiredTier="professional"
+          feature="Smart Transfer Intelligence"
+          description="Unlock AI-powered insights, performance predictions, and automated optimizations to boost your transfer speeds by up to 25%."
+          className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200"
         />
       </section>
 
@@ -275,7 +282,13 @@ export default function DashboardHome() {
                         </Badge>
                       </td>
                       <td className="px-4 py-2">
-                        {transfer.created_at ? format(new Date(transfer.created_at), 'HH:mm') : '—'}
+                        {transfer.created_at ? (
+                          <ShortDateTime 
+                            date={transfer.created_at} 
+                            format="time-only"
+                            showTooltip={true}
+                          />
+                        ) : '—'}
                       </td>
                     </tr>
                   ))}
@@ -310,9 +323,19 @@ export default function DashboardHome() {
                       <span className={cn("h-2.5 w-2.5 rounded-full", statusColor)} />
                       <span className="text-sm">{agent.name}</span>
                     </div>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {isOnline ? `Load ${load}%` : 'Offline'}
-                    </span>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {isOnline ? (
+                        <div className="flex items-center gap-2">
+                          <span>Load {load}%</span>
+                          <BusinessHoursIndicator 
+                            date={agent.last_seen_at}
+                            className="text-xs"
+                          />
+                        </div>
+                      ) : (
+                        <span>Offline</span>
+                      )}
+                    </div>
                   </li>
                 )
               })}
@@ -321,7 +344,7 @@ export default function DashboardHome() {
         </Card>
       </section>
 
-      {/* Activity & Announcements */}
+      {/* Activity & Smart Features */}
       <section className="grid lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-3 duration-700 delay-300">
         {/* Timeline */}
         <Card className="lg:col-span-2 bg-white/60 dark:bg-zinc-900/60">
@@ -337,7 +360,10 @@ export default function DashboardHome() {
                     <strong className="font-medium">NYC-3</strong> completed incremental backup.
                   </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {formatDistanceToNow(new Date(Date.now() - 2 * 60 * 60 * 1000), { addSuffix: true })}
+                    <RelativeTime 
+                      date={new Date(Date.now() - 2 * 60 * 60 * 1000)} 
+                      showTooltip={true}
+                    />
                   </p>
                 </div>
               </li>
@@ -348,7 +374,10 @@ export default function DashboardHome() {
                     <strong className="font-medium">SEA-1</strong> failed to connect to LON-5.
                   </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {formatDistanceToNow(new Date(Date.now() - 3 * 60 * 60 * 1000), { addSuffix: true })}
+                    <RelativeTime 
+                      date={new Date(Date.now() - 3 * 60 * 60 * 1000)} 
+                      showTooltip={true}
+                    />
                   </p>
                 </div>
               </li>
@@ -359,7 +388,10 @@ export default function DashboardHome() {
                     New agent <strong className="font-medium">LAX-7</strong> joined the cluster.
                   </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {formatDistanceToNow(new Date(Date.now() - 24 * 60 * 60 * 1000), { addSuffix: true })}
+                    <RelativeTime 
+                      date={new Date(Date.now() - 24 * 60 * 60 * 1000)} 
+                      showTooltip={true}
+                    />
                   </p>
                 </div>
               </li>
@@ -367,27 +399,54 @@ export default function DashboardHome() {
           </CardContent>
         </Card>
 
-        {/* Announcements */}
-        <Card className="bg-white/60 dark:bg-zinc-900/60">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Announcements</CardTitle>
-            <button className="text-xs text-indigo-500 hover:underline">Archive</button>
+        {/* Smart Features Teaser */}
+        <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Brain className="w-5 h-5 text-purple-600" />
+              <CardTitle className="text-purple-900">AI Insights</CardTitle>
+              <Badge variant="outline" className="text-purple-600 border-purple-300">
+                Professional
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <article className="relative pl-3">
-              <span className="absolute left-0 top-0 h-full w-0.5 bg-indigo-500/60"></span>
-              <h4 className="font-medium">Maintenance window</h4>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                Scheduled on 18 July, 01:00-03:00 UTC.
-              </p>
-            </article>
-            <article className="relative pl-3">
-              <span className="absolute left-0 top-0 h-full w-0.5 bg-indigo-500/60"></span>
-              <h4 className="font-medium">Agent v2.7 released</h4>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                Improved transfer throughput and bug fixes.
-              </p>
-            </article>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <Lightbulb className="w-4 h-4 text-yellow-500 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">3 optimization opportunities</p>
+                  <p className="text-xs text-gray-600">Potential 25% speed improvement</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <TrendingUp className="w-4 h-4 text-green-500 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Performance prediction</p>
+                  <p className="text-xs text-gray-600">Next transfer: 2h 15m estimated</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-3">
+                <Zap className="w-4 h-4 text-blue-500 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Smart queue active</p>
+                  <p className="text-xs text-gray-600">5 transfers optimally scheduled</p>
+                </div>
+              </div>
+            </div>
+            
+            <Button 
+              size="sm" 
+              className="w-full bg-purple-600 hover:bg-purple-700"
+              asChild
+            >
+              <a href="/dashboard/smart-transfers">
+                Explore Smart Features
+                <Crown className="w-3 h-3 ml-1" />
+              </a>
+            </Button>
           </CardContent>
         </Card>
       </section>

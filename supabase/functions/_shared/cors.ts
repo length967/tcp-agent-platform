@@ -5,7 +5,13 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5173',
+  // For development - allow all localhost variations
+  'http://localhost:54321',
+  'http://127.0.0.1:54321',
 ]
+
+// For development only - allow all origins
+const isDevelopment = Deno.env.get('ENVIRONMENT') === 'development' || !Deno.env.get('ENVIRONMENT')
 
 const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -22,7 +28,10 @@ export const withCors: Middleware = async (req, ctx, next) => {
     const origin = req.headers.get('origin')
     const headers = { ...corsHeaders }
     
-    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    // In development, allow all origins
+    if (isDevelopment && origin) {
+      headers['Access-Control-Allow-Origin'] = origin
+    } else if (origin && ALLOWED_ORIGINS.includes(origin)) {
       headers['Access-Control-Allow-Origin'] = origin
     }
     
@@ -33,7 +42,11 @@ export const withCors: Middleware = async (req, ctx, next) => {
   const response = await next(req, ctx)
   
   const origin = req.headers.get('origin')
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  
+  // In development, allow all origins
+  if (isDevelopment && origin) {
+    response.headers.set('Access-Control-Allow-Origin', origin)
+  } else if (origin && ALLOWED_ORIGINS.includes(origin)) {
     response.headers.set('Access-Control-Allow-Origin', origin)
   }
   

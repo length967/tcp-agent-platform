@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useTheme } from '@/components/theme-provider'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ProjectSwitcher } from '@/components/projects/ProjectSwitcher'
+import { AIInsightsSidebar } from '@/components/ui/ai-insights-sidebar'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   Activity,
@@ -73,6 +74,11 @@ export default function DashboardLayout() {
               )
             })}
           </nav>
+          
+          {/* AI Insights Sidebar */}
+          <div className="mt-6 flex-1">
+            <AIInsightsSidebar />
+          </div>
         </div>
 
         <div className="px-6 py-5 border-t border-zinc-200 dark:border-zinc-800 flex items-center gap-3">

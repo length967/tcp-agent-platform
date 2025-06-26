@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
@@ -10,6 +10,7 @@ import { VerifyEmail } from '@/components/auth/VerifyEmail'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ProjectProvider } from '@/contexts/ProjectContext'
+import { TimezoneProvider } from '@/contexts/TimezoneContext'
 import { SessionWarningModal, useSessionWarning } from '@/components/SessionWarningModal'
 import DashboardHome from '@/pages/dashboard/DashboardHome'
 import Projects from '@/pages/dashboard/Projects'
@@ -29,37 +30,12 @@ const queryClient = new QueryClient({
   },
 })
 
-function AppContent() {
+function RootLayout() {
   const { showWarning, warningTime, handleExtend, handleDismiss } = useSessionWarning()
   
   return (
     <>
-      <Routes>
-              {/* Auth routes */}
-              <Route path="/auth" element={<AuthLayout />}>
-                <Route path="login" element={<LoginForm />} />
-                <Route path="signup" element={<SignupForm />} />
-                <Route path="verify-email" element={<VerifyEmail />} />
-                <Route index element={<Navigate to="/auth/login" replace />} />
-              </Route>
-
-              {/* Protected Dashboard routes */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard" element={<DashboardLayout />}>
-                  <Route index element={<DashboardHome />} />
-                  <Route path="projects" element={<Projects />} />
-                  <Route path="projects/:projectId" element={<ProjectDetails />} />
-                  <Route path="agents" element={<Agents />} />
-                  <Route path="transfers" element={<Transfers />} />
-                  <Route path="team" element={<Team />} />
-                  <Route path="company" element={<Company />} />
-                  <Route path="settings" element={<Settings />} />
-                </Route>
-              </Route>
-
-              {/* Default redirect */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+      <Outlet />
       {showWarning && (
         <SessionWarningModal
           timeRemaining={warningTime}
@@ -71,17 +47,107 @@ function AppContent() {
   )
 }
 
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: (
+      <AuthProvider>
+        <TimezoneProvider>
+          <ProjectProvider>
+            <RootLayout />
+          </ProjectProvider>
+        </TimezoneProvider>
+      </AuthProvider>
+    ),
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/dashboard" replace />,
+      },
+      {
+        path: 'auth',
+        element: <AuthLayout />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="/auth/login" replace />,
+          },
+          {
+            path: 'login',
+            element: <LoginForm />,
+          },
+          {
+            path: 'signup',
+            element: <SignupForm />,
+          },
+          {
+            path: 'verify-email',
+            element: <VerifyEmail />,
+          },
+        ],
+      },
+      {
+        path: 'dashboard',
+        element: <ProtectedRoute />,
+        children: [
+          {
+            element: <DashboardLayout />,
+            children: [
+              {
+                index: true,
+                element: <DashboardHome />,
+              },
+              {
+                path: 'projects',
+                element: <Projects />,
+              },
+              {
+                path: 'projects/:projectId',
+                element: <ProjectDetails />,
+              },
+              {
+                path: 'agents',
+                element: <Agents />,
+              },
+              {
+                path: 'transfers',
+                element: <Transfers />,
+              },
+              {
+                path: 'team',
+                element: <Team />,
+              },
+              {
+                path: 'company',
+                element: <Company />,
+              },
+              {
+                path: 'settings',
+                element: <Settings />,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+], {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+    v7_normalizeFormMethod: true,
+    v7_fetcherPersist: true,
+    v7_partialHydration: true,
+    v7_prependBasename: true,
+    v7_skipActionErrorRevalidation: true,
+  },
+})
+
 function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="tcp-agent-theme">
       <QueryClientProvider client={queryClient}>
-        <Router>
-          <AuthProvider>
-            <ProjectProvider>
-              <AppContent />
-            </ProjectProvider>
-          </AuthProvider>
-        </Router>
+        <RouterProvider router={router} />
         <Toaster />
       </QueryClientProvider>
     </ThemeProvider>

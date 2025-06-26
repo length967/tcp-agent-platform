@@ -7,6 +7,13 @@ export const Permissions = {
   COMPANY_VIEW: 'company:view',
   COMPANY_EDIT: 'company:edit',
   COMPANY_VIEW_SETTINGS: 'company:view_settings',
+  COMPANY_EDIT_SETTINGS: 'company:edit_settings',
+  
+  // Timezone-specific permissions
+  TIMEZONE_VIEW_COMPANY: 'timezone:view_company',
+  TIMEZONE_EDIT_COMPANY: 'timezone:edit_company',
+  TIMEZONE_ENFORCE: 'timezone:enforce',
+  BUSINESS_HOURS_EDIT: 'business_hours:edit',
   
   // Member management
   MEMBERS_VIEW: 'members:view',
@@ -42,6 +49,9 @@ export const Permissions = {
   // Billing (company level only)
   BILLING_VIEW: 'billing:view',
   BILLING_MANAGE: 'billing:manage',
+  
+  // User preferences (self-service)
+  USER_PREFERENCES_EDIT: 'user:edit_preferences',
 } as const
 
 export type Permission = typeof Permissions[keyof typeof Permissions]
@@ -59,6 +69,11 @@ export const CompanyRoles = {
     Permissions.COMPANY_VIEW,
     Permissions.COMPANY_EDIT,
     Permissions.COMPANY_VIEW_SETTINGS,
+    Permissions.COMPANY_EDIT_SETTINGS,
+    Permissions.TIMEZONE_VIEW_COMPANY,
+    Permissions.TIMEZONE_EDIT_COMPANY,
+    Permissions.TIMEZONE_ENFORCE,
+    Permissions.BUSINESS_HOURS_EDIT,
     Permissions.MEMBERS_VIEW,
     Permissions.MEMBERS_INVITE,
     Permissions.MEMBERS_MANAGE,
@@ -81,15 +96,18 @@ export const CompanyRoles = {
     Permissions.TELEMETRY_VIEW,
     Permissions.TELEMETRY_EXPORT,
     Permissions.BILLING_VIEW,
+    Permissions.USER_PREFERENCES_EDIT,
   ],
   member: [
-    // Basic read permissions only
+    // Basic read permissions and self-service capabilities
     Permissions.COMPANY_VIEW,
+    Permissions.TIMEZONE_VIEW_COMPANY,
     Permissions.MEMBERS_VIEW,
     Permissions.PROJECT_VIEW,
     Permissions.AGENT_VIEW,
     Permissions.TRANSFER_VIEW,
     Permissions.TELEMETRY_VIEW,
+    Permissions.USER_PREFERENCES_EDIT, // Users can edit their own preferences
   ],
 } as const
 
@@ -184,4 +202,37 @@ export function hasAllPermissions(
   requiredPermissions: Permission[]
 ): boolean {
   return requiredPermissions.every(p => userPermissions.includes(p))
+}
+
+/**
+ * Timezone-specific permission validation functions
+ */
+export function canEditCompanyTimezone(userPermissions: Permission[]): boolean {
+  return hasAnyPermission(userPermissions, [
+    Permissions.TIMEZONE_EDIT_COMPANY,
+    Permissions.COMPANY_EDIT_SETTINGS
+  ])
+}
+
+export function canViewCompanyTimezone(userPermissions: Permission[]): boolean {
+  return hasAnyPermission(userPermissions, [
+    Permissions.TIMEZONE_VIEW_COMPANY,
+    Permissions.TIMEZONE_EDIT_COMPANY,
+    Permissions.COMPANY_VIEW_SETTINGS
+  ])
+}
+
+export function canEnforceTimezone(userPermissions: Permission[]): boolean {
+  return hasPermission(userPermissions, Permissions.TIMEZONE_ENFORCE)
+}
+
+export function canEditBusinessHours(userPermissions: Permission[]): boolean {
+  return hasAnyPermission(userPermissions, [
+    Permissions.BUSINESS_HOURS_EDIT,
+    Permissions.TIMEZONE_EDIT_COMPANY
+  ])
+}
+
+export function canEditUserPreferences(userPermissions: Permission[]): boolean {
+  return hasPermission(userPermissions, Permissions.USER_PREFERENCES_EDIT)
 }

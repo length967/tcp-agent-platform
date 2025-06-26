@@ -1,0 +1,74 @@
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8
+    container_name: tcp-clickhouse
+    hostname: clickhouse
+    ports:
+      - "8123:8123"  # HTTP interface
+      - "9000:9000"  # Native interface
+      - "9009:9009"  # HTTP interface with SSL
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    environment:
+      - CLICKHOUSE_DB=tcp_optimization
+      - CLICKHOUSE_USER=tcp_user
+      - CLICKHOUSE_PASSWORD=tcp_password
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: ClickHouse client for debugging
+  clickhouse-client:
+    image: clickhouse/clickhouse-client:23.8
+    container_name: tcp-clickhouse-client
+    depends_on:
+      - clickhouse
+    command: 
+      - clickhouse-client
+      - --host=clickhouse
+      - --port=9000
+      - --user=tcp_user
+      - --password=tcp_password
+      - --database=tcp_optimization
+    profiles:
+      - client
+    stdin_open: true
+    tty: true
+
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: tcp-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-clickhouse-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    profiles:
+      - monitoring
+    depends_on:
+      - clickhouse
+
+volumes:
+  clickhouse_data:
+    driver: local
+  clickhouse_logs:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  default:
+    name: tcp-optimization-network 

@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { toast } from '@/components/ui/use-toast'
 import { api } from '@/lib/api'
+import { useTimezone, TIMEZONES } from '@/contexts/TimezoneContext'
 import { 
   Building2, 
   Shield, 
@@ -18,7 +19,8 @@ import {
   CreditCard,
   Settings,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Globe
 } from 'lucide-react'
 
 interface CompanyData {
@@ -30,6 +32,11 @@ interface CompanyData {
   subscription_ends_at: string | null
   session_timeout_minutes: number
   enforce_session_timeout: boolean
+  default_timezone: string
+  enforce_timezone: boolean
+  business_hours_start: string
+  business_hours_end: string
+  business_days: number[]
   created_at: string
   updated_at: string
 }
@@ -44,6 +51,7 @@ interface CompanyMember {
 
 export default function Company() {
   const { user } = useAuth()
+  const { formatDateTime, detectedTimezone } = useTimezone()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('general')
 
@@ -261,6 +269,138 @@ export default function Company() {
                     </p>
                   </div>
                 )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <Globe className="h-4 w-4" />
+                  Timezone & Business Hours
+                </h3>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Company Timezone</Label>
+                    <Select
+                      value={company.default_timezone || 'UTC'}
+                      onValueChange={(value) => {
+                        if (canEditSettings) {
+                          updateCompany.mutate({ default_timezone: value })
+                        }
+                      }}
+                      disabled={!canEditSettings}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select timezone..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {TIMEZONES.map((tz) => (
+                          <SelectItem key={tz.value} value={tz.value}>
+                            <div className="flex items-center justify-between w-full">
+                              <span>{tz.label}</span>
+                              <span className="text-xs text-muted-foreground ml-2">{tz.offset}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {company.default_timezone && (
+                      <p className="text-sm text-muted-foreground">
+                        Company time: {formatDateTime(new Date(), { 
+                          timezone: company.default_timezone, 
+                          includeTimezone: true 
+                        })}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>Enforce Company Timezone</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Require all users to use the company timezone for consistency
+                      </p>
+                    </div>
+                    <Switch
+                      checked={company.enforce_timezone || false}
+                      onCheckedChange={(checked) => {
+                        if (canEditSettings) {
+                          updateCompany.mutate({ enforce_timezone: checked })
+                        }
+                      }}
+                      disabled={!canEditSettings}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Business Hours Start</Label>
+                      <Input
+                        type="time"
+                        value={company.business_hours_start || '09:00'}
+                        onChange={(e) => {
+                          if (canEditSettings) {
+                            updateCompany.mutate({ business_hours_start: e.target.value })
+                          }
+                        }}
+                        disabled={!canEditSettings}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Business Hours End</Label>
+                      <Input
+                        type="time"
+                        value={company.business_hours_end || '17:00'}
+                        onChange={(e) => {
+                          if (canEditSettings) {
+                            updateCompany.mutate({ business_hours_end: e.target.value })
+                          }
+                        }}
+                        disabled={!canEditSettings}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Business Days</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { value: 1, label: 'Mon' },
+                        { value: 2, label: 'Tue' },
+                        { value: 3, label: 'Wed' },
+                        { value: 4, label: 'Thu' },
+                        { value: 5, label: 'Fri' },
+                        { value: 6, label: 'Sat' },
+                        { value: 7, label: 'Sun' }
+                      ].map((day) => {
+                        const isSelected = company.business_days?.includes(day.value) ?? [1,2,3,4,5].includes(day.value)
+                        return (
+                          <Button
+                            key={day.value}
+                            variant={isSelected ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                              if (!canEditSettings) return
+                              const currentDays = company.business_days || [1,2,3,4,5]
+                              const newDays = isSelected 
+                                ? currentDays.filter(d => d !== day.value)
+                                : [...currentDays, day.value].sort()
+                              updateCompany.mutate({ business_days: newDays })
+                            }}
+                            disabled={!canEditSettings}
+                            className="w-12 h-8"
+                          >
+                            {day.label}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Business hours are used for scheduling and notifications
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <Separator />

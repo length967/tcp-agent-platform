@@ -5,6 +5,76 @@ export const uuidSchema = z.string().uuid()
 export const emailSchema = z.string().email()
 export const slugSchema = z.string().regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
 
+// Timezone validation schemas
+const VALID_TIMEZONES = [
+  'UTC',
+  'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+  'America/Phoenix', 'America/Anchorage', 'Pacific/Honolulu',
+  'America/Toronto', 'America/Vancouver',
+  'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Rome',
+  'Europe/Madrid', 'Europe/Amsterdam', 'Europe/Stockholm', 'Europe/Zurich',
+  'Europe/Moscow',
+  'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Hong_Kong', 'Asia/Singapore',
+  'Asia/Seoul', 'Asia/Kolkata', 'Asia/Dubai',
+  'Australia/Sydney', 'Australia/Melbourne', 'Australia/Perth',
+  'Pacific/Auckland'
+] as const
+
+export const timezoneSchema = z.enum(VALID_TIMEZONES as [string, ...string[]])
+
+export const timeFormatSchema = z.enum(['12h', '24h'])
+
+export const businessDaysSchema = z.array(z.number().int().min(1).max(7)).min(1).max(7)
+
+export const businessHoursSchema = z.object({
+  start: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/, 'Invalid time format (HH:MM:SS)'),
+  end: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/, 'Invalid time format (HH:MM:SS)')
+}).refine(data => {
+  const startTime = new Date(`2000-01-01T${data.start}`)
+  const endTime = new Date(`2000-01-01T${data.end}`)
+  return startTime < endTime
+}, {
+  message: "End time must be after start time"
+})
+
+// User preferences schemas with timezone validation
+export const updateUserPreferencesSchema = z.object({
+  theme: z.enum(['light', 'dark', 'system']).optional(),
+  timezone: timezoneSchema.optional(),
+  language: z.string().length(2).optional(),
+  date_format: z.string().optional(),
+  time_format: timeFormatSchema.optional(),
+  email_notifications: z.boolean().optional(),
+  email_marketing: z.boolean().optional(),
+  email_security_alerts: z.boolean().optional(),
+  email_weekly_digest: z.boolean().optional(),
+  profile_visibility: z.enum(['public', 'team', 'private']).optional(),
+  show_email: z.boolean().optional(),
+  activity_tracking: z.boolean().optional(),
+  api_key_expires_days: z.number().min(1).max(365).optional(),
+  webhook_notifications: z.boolean().optional(),
+  session_timeout_minutes: z.number().min(15).max(10080).optional(), // 15 min to 7 days
+})
+
+// Company timezone settings schemas
+export const updateCompanyTimezoneSchema = z.object({
+  default_timezone: timezoneSchema.optional(),
+  enforce_timezone: z.boolean().optional(),
+  business_hours_start: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/).optional(),
+  business_hours_end: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/).optional(),
+  business_days: businessDaysSchema.optional()
+}).refine(data => {
+  // If both start and end times are provided, validate they make sense
+  if (data.business_hours_start && data.business_hours_end) {
+    const startTime = new Date(`2000-01-01T${data.business_hours_start}`)
+    const endTime = new Date(`2000-01-01T${data.business_hours_end}`)
+    return startTime < endTime
+  }
+  return true
+}, {
+  message: "Business hours end time must be after start time"
+})
+
 // Pagination schemas
 export const paginationSchema = z.object({
   page: z.number().int().positive().default(1),
@@ -131,6 +201,17 @@ export const requestDownloadUrlSchema = z.object({
   file_id: uuidSchema,
   expires_in: z.number().int().positive().max(3600).optional() // Max 1 hour
 })
+
+// Helper function to validate timezone string
+export function isValidTimezone(timezone: string): boolean {
+  try {
+    // Test if timezone is valid by attempting to format a date
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date())
+    return true
+  } catch {
+    return false
+  }
+}
 
 // Helper function to validate request body
 export async function validateRequestBody<T>(

@@ -28,14 +28,33 @@ export async function handleAgents(req: Request, ctx: Context): Promise<Response
   const agentId = pathParts[2] // After /api-gateway/agents/
   const action = pathParts[3] // After /api-gateway/agents/:id/
   
-  // Get project context from user
-  const projectId = ctx.user?.project_id
-  if (!projectId) {
-    // Try to get from request body for agent authentication
-    if (method === 'POST' && agentId === 'authenticate') {
-      // Allow authenticate endpoint without project context
-    } else {
-      throw new ApiError(400, 'No project context')
+  // Get project context from request header or user's projects
+  let projectId: string | null = null
+  
+  if (method === 'POST' && agentId === 'authenticate') {
+    // Allow authenticate endpoint without project context
+  } else {
+    // Try to get project ID from header first
+    projectId = req.headers.get('x-project-id')
+    
+    if (!projectId) {
+      // Fallback: Get user's first accessible project
+      const { data: projects } = await supabase
+        .from('projects')
+        .select('id')
+        .in('id', supabase
+          .from('project_members')
+          .select('project_id')
+          .eq('user_id', ctx.user!.id)
+        )
+        .order('created_at', { ascending: true })
+        .limit(1)
+      
+      if (!projects || projects.length === 0) {
+        throw new ApiError(404, 'No accessible projects found')
+      }
+      
+      projectId = projects[0].id
     }
   }
   

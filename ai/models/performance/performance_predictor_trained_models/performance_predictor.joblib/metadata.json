@@ -1,0 +1,34 @@
+{
+  "feature_names": [
+    "feature_0",
+    "feature_1",
+    "feature_2",
+    "feature_3",
+    "feature_4",
+    "feature_5",
+    "feature_6",
+    "feature_7",
+    "feature_8",
+    "feature_9",
+    "feature_10",
+    "feature_11",
+    "feature_12",
+    "feature_13",
+    "feature_14"
+  ],
+  "model_metadata": {
+    "trained_at": "2025-06-26T10:52:10.179445",
+    "training_samples": 8003,
+    "feature_count": 15,
+    "metrics": {
+      "throughput_mae": 0.13590568902860364,
+      "throughput_r2": 0.9999634370949927,
+      "throughput_rmse": 0.19171525073815257,
+      "completion_mae": 0.2960992641617216,
+      "completion_r2": 0.9951308833725357,
+      "completion_rmse": 0.4575056007402721
+    }
+  },
+  "version": "trained_models/performance_predictor.joblib",
+  "saved_at": "2025-06-26T10:52:10.760174"
+}

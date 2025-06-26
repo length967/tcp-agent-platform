@@ -1,0 +1,39 @@
+{
+  "clickhouse": {
+    "host": "localhost",
+    "port": 8123,
+    "database": "tcp_optimization",
+    "username": "default",
+    "password": ""
+  },
+  "models": {
+    "performance_predictor": {
+      "model_dir": "models/performance",
+      "retrain_interval_hours": 24
+    },
+    "anomaly_detector": {
+      "model_dir": "models/anomaly",
+      "retrain_interval_hours": 12
+    },
+    "resource_allocator": {
+      "model_dir": "models/resource",
+      "retrain_interval_hours": 6
+    },
+    "scheduling_optimizer": {
+      "model_dir": "models/scheduling",
+      "retrain_interval_hours": 8
+    }
+  },
+  "training": {
+    "batch_size": 64,
+    "validation_split": 0.2,
+    "early_stopping_patience": 10,
+    "max_training_time_hours": 2
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "logs/ai_platform.log",
+    "max_file_size_mb": 100,
+    "backup_count": 5
+  }
+}

@@ -29,8 +29,15 @@ class TokenRefreshManager {
     const session = await this.getSession()
     if (!session) return
     
-    // Load session config
-    await this.loadSessionConfig()
+    // Load session config with retry
+    try {
+      await this.loadSessionConfig()
+    } catch (error) {
+      // Retry once after a short delay
+      setTimeout(() => {
+        this.loadSessionConfig().catch(console.warn)
+      }, 2000)
+    }
     
     // Calculate when to refresh (5 minutes before expiry)
     const expiresAt = session.expires_at ? session.expires_at * 1000 : 0
@@ -155,6 +162,7 @@ class TokenRefreshManager {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
       })
       
@@ -187,12 +195,16 @@ class TokenRefreshManager {
         this.updateActivity()
       }
     } catch (error) {
-      console.warn('Failed to load session config:', error)
+      // Don't log network errors during initial startup
+      if (!(error instanceof TypeError && error.message === 'Failed to fetch')) {
+        console.warn('Failed to load session config:', error)
+      }
       // Fallback to cached config
       const cachedConfig = SecureStorage.getJsonItem<SessionConfig>('sessionConfig')
       if (cachedConfig) {
         this.sessionConfig = { ...this.sessionConfig, ...cachedConfig }
       }
+      // Don't throw the error, just continue with defaults
     }
   }
   

@@ -2,25 +2,16 @@ import { Context } from '../../_shared/middleware.ts'
 import { BadRequestError, NotFoundError } from '../../_shared/errors.ts'
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
-
-// Validation schemas
-const updatePreferencesSchema = z.object({
-  theme: z.enum(['light', 'dark', 'system']).optional(),
-  timezone: z.string().optional(),
-  language: z.string().length(2).optional(),
-  date_format: z.string().optional(),
-  time_format: z.enum(['12h', '24h']).optional(),
-  email_notifications: z.boolean().optional(),
-  email_marketing: z.boolean().optional(),
-  email_security_alerts: z.boolean().optional(),
-  email_weekly_digest: z.boolean().optional(),
-  profile_visibility: z.enum(['public', 'team', 'private']).optional(),
-  show_email: z.boolean().optional(),
-  activity_tracking: z.boolean().optional(),
-  api_key_expires_days: z.number().min(1).max(365).optional(),
-  webhook_notifications: z.boolean().optional(),
-  session_timeout_minutes: z.number().min(15).max(10080).optional(), // 15 min to 7 days
-})
+import { 
+  updateUserPreferencesSchema, 
+  isValidTimezone,
+  validateRequestBody 
+} from '../../_shared/validation/schemas.ts'
+import { 
+  Permissions,
+  canEditUserPreferences,
+  hasPermission
+} from '../../_shared/permissions.ts'
 
 const updateProfileSchema = z.object({
   full_name: z.string().min(1).max(100).optional(),
@@ -66,7 +57,7 @@ export async function handleUserSettings(req: Request, ctx: Context): Promise<Re
       if (method === 'GET') {
         return getPreferences(supabase, userId)
       } else if (method === 'PUT') {
-        return updatePreferences(req, supabase, userId)
+        return updatePreferences(req, supabase, userId, ctx)
       }
       break
     
@@ -154,12 +145,48 @@ async function getPreferences(supabase: any, userId: string): Promise<Response> 
 async function updatePreferences(
   req: Request,
   supabase: any,
-  userId: string
+  userId: string,
+  ctx?: any
 ): Promise<Response> {
-  const body = await req.json()
+  // Check permission to edit user preferences
+  if (ctx?.userPermissions && !canEditUserPreferences(ctx.userPermissions)) {
+    throw new AuthorizationError('Insufficient permissions to edit user preferences')
+  }
   
-  // Validate input
-  const validatedData = updatePreferencesSchema.parse(body)
+  // Check for user suspension
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('is_suspended')
+    .eq('id', userId)
+    .single()
+  
+  if (profile?.is_suspended) {
+    throw new AuthorizationError('Account is suspended')
+  }
+  
+  // Validate input with comprehensive timezone validation
+  const validatedData = await validateRequestBody(req, updateUserPreferencesSchema)
+  
+  // Additional security validation for timezone
+  if (validatedData.timezone && !isValidTimezone(validatedData.timezone)) {
+    throw new BadRequestError('Invalid timezone provided')
+  }
+  
+  // Check company timezone enforcement
+  if (validatedData.timezone && ctx?.tenant) {
+    const { data: companySettings } = await supabase
+      .from('companies')
+      .select('enforce_timezone, default_timezone')
+      .eq('id', ctx.tenant.id)
+      .single()
+    
+    if (companySettings?.enforce_timezone && 
+        companySettings.default_timezone !== validatedData.timezone) {
+      throw new AuthorizationError(
+        'Company timezone enforcement is enabled. Cannot override company timezone.'
+      )
+    }
+  }
   
   // Upsert preferences
   const { data, error } = await supabase

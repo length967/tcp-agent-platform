@@ -41,7 +41,7 @@ export async function handleProjects(req: Request, ctx: Context): Promise<Respon
       if (projectId) {
         return getProject(supabase, projectId, profile.company_id)
       }
-      return listProjects(supabase, profile.company_id)
+      return listProjects(supabase, profile.company_id, user.id)
     
     case 'POST':
       return createProject(req, supabase, profile.company_id, user.id)
@@ -63,19 +63,38 @@ export async function handleProjects(req: Request, ctx: Context): Promise<Respon
   }
 }
 
-async function listProjects(supabase: any, companyId: string): Promise<Response> {
+async function listProjects(supabase: any, companyId: string, userId: string): Promise<Response> {
+  // Ensure user has project access
+  const { data: userAccess, error: accessError } = await supabase
+    .rpc('ensure_user_project_access', { user_id_param: userId })
+  
+  if (accessError) {
+    throw new ApiError(500, `Failed to ensure project access: ${accessError.message}`)
+  }
+
+  // Get all projects the user has access to
   const { data: projects, error } = await supabase
     .from('projects')
-    .select('*')
-    .eq('company_id', companyId)
+    .select(`
+      *,
+      project_members!inner(
+        role,
+        added_at,
+        added_by
+      )
+    `)
+    .eq('project_members.user_id', userId)
     .order('created_at', { ascending: false })
   
   if (error) {
-    throw new ApiError(500, 'Failed to fetch projects')
+    throw new ApiError(500, `Failed to fetch projects: ${error.message}`)
   }
   
   return new Response(
-    JSON.stringify({ projects }),
+    JSON.stringify({ 
+      projects: projects || [],
+      userAccess: userAccess?.[0] || null
+    }),
     { headers: { 'Content-Type': 'application/json' } }
   )
 }

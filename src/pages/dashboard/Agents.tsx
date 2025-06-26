@@ -26,6 +26,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useToast } from '@/components/ui/use-toast'
+import { useTimezone } from '@/contexts/TimezoneContext'
+import { 
+  RelativeTime, 
+  ShortDateTime,
+  BusinessHoursIndicator 
+} from '@/components/ui/timezone-display'
 
 interface Agent {
   id: string
@@ -300,11 +306,19 @@ export default function Agents() {
                   {/* Last Seen */}
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">Last seen</span>
-                    <span className="text-sm">
-                      {agent.last_seen_at 
-                        ? formatDistanceToNow(new Date(agent.last_seen_at), { addSuffix: true })
-                        : 'Never'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">
+                        {agent.last_seen_at 
+                          ? <RelativeTime date={agent.last_seen_at} showTooltip={true} />
+                          : 'Never'}
+                      </span>
+                      {agent.last_seen_at && (
+                        <BusinessHoursIndicator 
+                          date={agent.last_seen_at}
+                          className="text-xs"
+                        />
+                      )}
+                    </div>
                   </div>
 
                   {/* System Metrics */}

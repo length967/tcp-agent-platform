@@ -30,20 +30,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
-
-// Timezone options
-const timezones = [
-  { value: 'UTC', label: 'UTC' },
-  { value: 'America/New_York', label: 'Eastern Time (US)' },
-  { value: 'America/Chicago', label: 'Central Time (US)' },
-  { value: 'America/Denver', label: 'Mountain Time (US)' },
-  { value: 'America/Los_Angeles', label: 'Pacific Time (US)' },
-  { value: 'Europe/London', label: 'London' },
-  { value: 'Europe/Paris', label: 'Central European Time' },
-  { value: 'Asia/Tokyo', label: 'Tokyo' },
-  { value: 'Asia/Shanghai', label: 'China Standard Time' },
-  { value: 'Australia/Sydney', label: 'Sydney' },
-]
+import { useTimezone, TIMEZONES } from '@/contexts/TimezoneContext'
 
 interface UserPreferences {
   theme: 'light' | 'dark' | 'system'
@@ -96,6 +83,7 @@ interface ApiKey {
 
 export default function Settings() {
   const { session } = useAuth()
+  const { detectedTimezone, formatDateTime } = useTimezone()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('profile')
   const [showNewApiKey, setShowNewApiKey] = useState<string | null>(null)
@@ -571,20 +559,39 @@ export default function Settings() {
                   }}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select timezone..." />
                   </SelectTrigger>
-                  <SelectContent>
-                    {timezones.map((tz) => (
+                  <SelectContent className="max-h-[300px]">
+                    {/* Show detected timezone first if not already selected */}
+                    {detectedTimezone && detectedTimezone !== preferencesData?.timezone && (
+                      <>
+                        <SelectItem value={detectedTimezone}>
+                          🌍 {TIMEZONES.find(tz => tz.value === detectedTimezone)?.label || detectedTimezone} (Detected)
+                        </SelectItem>
+                        <div className="border-b my-1" />
+                      </>
+                    )}
+                    {TIMEZONES.map((tz) => (
                       <SelectItem key={tz.value} value={tz.value}>
-                        {tz.label}
+                        <div className="flex items-center justify-between w-full">
+                          <span>{tz.label}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{tz.offset}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 {preferencesData?.timezone && (
-                  <p className="text-sm text-muted-foreground">
-                    Current time: {format(toZonedTime(new Date(), preferencesData.timezone), 'PPpp')}
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">
+                      Current time: {formatDateTime(new Date(), { includeTimezone: true })}
+                    </p>
+                    {detectedTimezone && detectedTimezone !== preferencesData.timezone && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        💡 Your browser timezone is {TIMEZONES.find(tz => tz.value === detectedTimezone)?.label || detectedTimezone}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 

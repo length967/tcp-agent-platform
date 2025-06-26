@@ -8,6 +8,7 @@ import { handleTeam } from './routes/team.ts'
 import { handleProjectMembers } from './routes/project-members.ts'
 import { handleUserSettings } from './routes/user-settings.ts'
 import { handleSessionConfig } from './routes/session-config.ts'
+import { handleCompanySettings } from './routes/company-settings.ts'
 import { composeMiddleware } from '../_shared/middleware.ts'
 import { withCors } from '../_shared/cors.ts'
 import { withSecurity } from '../_shared/security.ts'
@@ -16,6 +17,12 @@ import { withAgent } from '../_shared/auth/agentAuth.ts'
 import { withRateLimit } from '../_shared/rateLimit.ts'
 import { withAuditLog } from '../_shared/audit/middleware.ts'
 import { errorHandler } from '../_shared/errors.ts'
+import { 
+  withTimezoneValidation, 
+  withTimezoneRateLimit, 
+  withBusinessHoursValidation,
+  withTimezoneAuditLog 
+} from '../_shared/security/timezoneValidation.ts'
 
 /**
  * Main API Gateway
@@ -94,13 +101,36 @@ serve(async (req) => {
       // Team endpoints require user auth
       return await userApiMiddleware(req, handleTeam)
     }
+    else if (path.startsWith('/api-gateway/company')) {
+      // Company settings endpoints require user auth, tenant context, and timezone security
+      const companyApiMiddleware = composeMiddleware(
+        withCors,
+        withSecurity,
+        withRateLimit,
+        withUser,
+        withTenant,
+        withTimezoneValidation({ requireCompanyPermission: true }),
+        withTimezoneRateLimit,
+        withBusinessHoursValidation,
+        withTimezoneAuditLog,
+        withAuditLog
+      )
+      return await companyApiMiddleware(req, handleCompanySettings)
+    }
     else if (path.startsWith('/api-gateway/v1/user')) {
-      // User settings endpoints require user auth but not tenant context
+      // User settings endpoints require user auth, tenant context, and timezone validation
       const userOnlyMiddleware = composeMiddleware(
         withCors,
         withSecurity,
         withRateLimit,
         withUser,
+        withTenant, // Add tenant context for company timezone enforcement checks
+        withTimezoneValidation({ 
+          logTimezoneChanges: true,
+          requireCompanyPermission: false // Users can change their own preferences
+        }),
+        withTimezoneRateLimit,
+        withTimezoneAuditLog,
         withAuditLog
       )
       return await userOnlyMiddleware(req, handleUserSettings)

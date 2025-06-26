@@ -24,6 +24,8 @@ import {
   Loader2,
 } from 'lucide-react'
 import { ProjectMembersTab } from '@/components/projects/ProjectMembersTab'
+import { useTimezone } from '@/contexts/TimezoneContext'
+import { LongDateTime } from '@/components/ui/timezone-display'
 
 export default function ProjectDetails() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -208,8 +210,11 @@ export default function ProjectDetails() {
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Created</p>
                       <p className="text-sm">
-                        {new Date(project.created_at).toLocaleDateString()} at{' '}
-                        {new Date(project.created_at).toLocaleTimeString()}
+                        <LongDateTime 
+                          date={project.created_at} 
+                          showTooltip={true}
+                          showCompanyTime={true}
+                        />
                       </p>
                     </div>
                   </div>

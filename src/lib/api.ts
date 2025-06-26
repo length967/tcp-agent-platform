@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { createAuthenticatedFetch, tokenRefreshManager } from './auth-interceptor'
+import { SecureStorage } from './secure-storage'
 
 const API_URL = import.meta.env.VITE_SUPABASE_URL + '/functions/v1'
 
@@ -33,11 +34,15 @@ async function apiRequest<T = any>(
   
   const url = `${API_URL}/api-gateway${endpoint}`
   
+  // Get current project ID from secure storage
+  const currentProjectId = SecureStorage.getItem('currentProjectId')
+  
   const response = await authenticatedFetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
+      ...(currentProjectId && { 'X-Project-ID': currentProjectId }),
       ...options.headers
     }
   })
@@ -133,6 +138,48 @@ export const api = {
         }
         throw error
       }
+    }
+  },
+  
+  // Authentication
+  auth: {
+    checkDomainAccess: (email: string) =>
+      apiRequest('/auth/check-domain-access', {
+        method: 'POST',
+        body: JSON.stringify({ email })
+      }),
+    
+    getInvitationDetails: (token: string) =>
+      apiRequest(`/auth/invitation/${token}`, {
+        method: 'GET'
+      }),
+    
+    findSimilarCompanies: (data: { companyName: string; userEmail?: string }) =>
+      apiRequest('/auth/find-similar-companies', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+    
+    requestJoinCompany: (data: { companyId: string; message?: string }) =>
+      apiRequest('/auth/request-join-company', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+    
+    reviewJoinRequest: (data: { requestId: string; action: 'approve' | 'reject'; notes?: string }) =>
+      apiRequest('/auth/review-join-request', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      }),
+    
+    getJoinRequests: (params?: { status?: string; companyId?: string }) => {
+      const searchParams = new URLSearchParams()
+      if (params?.status) searchParams.set('status', params.status)
+      if (params?.companyId) searchParams.set('companyId', params.companyId)
+      
+      return apiRequest(`/auth/join-requests?${searchParams}`, {
+        method: 'GET'
+      })
     }
   },
   
