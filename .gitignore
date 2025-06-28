@@ -35,6 +35,21 @@ supabase/.temp
 # Database types (generated)
 src/lib/database.types.ts
 
+# Large binaries and executables
+clickhouse
+clickhouse-*
+*.bin
+*.exe
+
+# AI/ML models and data
+ai/models/trained/*
+ai/data/cache/*
+ai/data/temp/*
+*.pkl
+*.joblib
+*.h5
+*.pb
+
 # Gemini
 GEMINI.md
 ai/GEMINI.md
