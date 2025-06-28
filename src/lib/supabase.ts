@@ -8,6 +8,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
+// Disable realtime for local development to prevent WebSocket connection errors
+const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -17,7 +20,12 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   realtime: {
     params: {
       eventsPerSecond: 10
-    }
+    },
+    // Disable realtime in local development
+    ...(isLocalDev && { 
+      autoConnect: false,
+      timeout: 0
+    })
   }
 })
 
@@ -77,6 +85,12 @@ export const subscribeToProject = (projectId: string, callbacks: {
   onTransferUpdate?: (payload: any) => void
   onTelemetry?: (payload: any) => void
 }) => {
+  // Skip realtime subscriptions in local development
+  if (isLocalDev) {
+    console.log('Realtime subscriptions disabled in local development')
+    return () => {} // Return no-op cleanup function
+  }
+
   const channel = supabase
     .channel(`project:${projectId}`)
     .on(
