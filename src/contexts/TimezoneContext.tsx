@@ -134,7 +134,8 @@ export function TimezoneProvider({ children }: { children: ReactNode }) {
       const response = await api.client.get('/company')
       if (!response.ok) return null
       const data = await response.json()
-      return data.company?.settings as CompanySettings | null
+      // The API returns the company object directly, not nested under settings
+      return data.company as CompanySettings | null
     },
     enabled: !!session
   })
