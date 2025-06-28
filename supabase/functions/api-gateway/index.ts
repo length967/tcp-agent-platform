@@ -102,38 +102,12 @@ serve(async (req) => {
       return await userApiMiddleware(req, handleTeam)
     }
     else if (path.startsWith('/api-gateway/company')) {
-      // Company settings endpoints require user auth, tenant context, and timezone security
-      const companyApiMiddleware = composeMiddleware(
-        withCors,
-        withSecurity,
-        withRateLimit,
-        withUser,
-        withTenant,
-        withTimezoneValidation({ requireCompanyPermission: true }),
-        withTimezoneRateLimit,
-        withBusinessHoursValidation,
-        withTimezoneAuditLog,
-        withAuditLog
-      )
-      return await companyApiMiddleware(req, handleCompanySettings)
+      // Company settings endpoints require user auth and tenant context
+      return await userApiMiddleware(req, handleCompanySettings)
     }
-    else if (path.startsWith('/api-gateway/v1/user')) {
-      // User settings endpoints require user auth, tenant context, and timezone validation
-      const userOnlyMiddleware = composeMiddleware(
-        withCors,
-        withSecurity,
-        withRateLimit,
-        withUser,
-        withTenant, // Add tenant context for company timezone enforcement checks
-        withTimezoneValidation({ 
-          logTimezoneChanges: true,
-          requireCompanyPermission: false // Users can change their own preferences
-        }),
-        withTimezoneRateLimit,
-        withTimezoneAuditLog,
-        withAuditLog
-      )
-      return await userOnlyMiddleware(req, handleUserSettings)
+    else if (path.startsWith('/api-gateway/user')) {
+      // User settings endpoints require user auth and simplified middleware
+      return await userApiMiddleware(req, handleUserSettings)
     }
     else if (path === '/api-gateway/session/config') {
       // Session config endpoint requires user auth

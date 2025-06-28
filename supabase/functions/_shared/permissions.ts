@@ -1,172 +1,101 @@
-/**
- * Central permission definitions for the TCP Agent Platform
- */
+export type Permission = string
 
 export const Permissions = {
-  // Company-level permissions
+  // Company permissions
   COMPANY_VIEW: 'company:view',
-  COMPANY_EDIT: 'company:edit',
   COMPANY_VIEW_SETTINGS: 'company:view_settings',
   COMPANY_EDIT_SETTINGS: 'company:edit_settings',
+  COMPANY_EDIT_PRIVACY: 'company:edit_privacy',
+  COMPANY_MANAGE_SECURITY: 'company:manage_security',
   
-  // Timezone-specific permissions
+  // Timezone permissions
   TIMEZONE_VIEW_COMPANY: 'timezone:view_company',
   TIMEZONE_EDIT_COMPANY: 'timezone:edit_company',
   TIMEZONE_ENFORCE: 'timezone:enforce',
   BUSINESS_HOURS_EDIT: 'business_hours:edit',
   
-  // Member management
-  MEMBERS_VIEW: 'members:view',
-  MEMBERS_INVITE: 'members:invite',
-  MEMBERS_MANAGE: 'members:manage',
-  MEMBERS_REMOVE: 'members:remove',
-  MEMBERS_ROLE_CHANGE: 'members:change_role',
-  USER_SUSPEND: 'user:suspend',
-  
-  // Project management
-  PROJECT_CREATE: 'project:create',
-  PROJECT_DELETE: 'project:delete',
-  PROJECT_EDIT: 'project:edit',
+  // Project permissions
   PROJECT_VIEW: 'project:view',
+  PROJECT_CREATE: 'project:create',
+  PROJECT_EDIT: 'project:edit',
+  PROJECT_DELETE: 'project:delete',
+  PROJECT_MANAGE_MEMBERS: 'project:manage_members',
   
-  // Agent management
-  AGENT_CREATE: 'agent:create',
-  AGENT_DELETE: 'agent:delete',
-  AGENT_EDIT: 'agent:edit',
-  AGENT_VIEW: 'agent:view',
-  AGENT_REGISTER: 'agent:register',
+  // Team permissions
+  TEAM_VIEW: 'team:view',
+  TEAM_MANAGE: 'team:manage',
+  TEAM_INVITE: 'team:invite',
   
-  // Transfer management
-  TRANSFER_CREATE: 'transfer:create',
-  TRANSFER_DELETE: 'transfer:delete',
-  TRANSFER_EDIT: 'transfer:edit',
-  TRANSFER_VIEW: 'transfer:view',
-  
-  // Telemetry
-  TELEMETRY_VIEW: 'telemetry:view',
-  TELEMETRY_EXPORT: 'telemetry:export',
-  
-  // Billing (company level only)
-  BILLING_VIEW: 'billing:view',
-  BILLING_MANAGE: 'billing:manage',
-  
-  // User preferences (self-service)
-  USER_PREFERENCES_EDIT: 'user:edit_preferences',
+  // Join request permissions
+  JOIN_REQUEST_VIEW: 'join_request:view',
+  JOIN_REQUEST_APPROVE: 'join_request:approve',
+  JOIN_REQUEST_REJECT: 'join_request:reject'
 } as const
 
-export type Permission = typeof Permissions[keyof typeof Permissions]
+export type CompanyRole = 'owner' | 'admin' | 'member'
+export type ProjectRole = 'admin' | 'editor' | 'viewer'
 
-/**
- * Role definitions with their associated permissions
- */
-export const CompanyRoles = {
-  owner: [
-    // All permissions
-    ...Object.values(Permissions),
-  ],
+// Company role permissions
+export const CompanyRoles: Record<CompanyRole, Permission[]> = {
+  owner: Object.values(Permissions), // Owners have all permissions
   admin: [
-    // All permissions except ownership transfer
     Permissions.COMPANY_VIEW,
-    Permissions.COMPANY_EDIT,
     Permissions.COMPANY_VIEW_SETTINGS,
     Permissions.COMPANY_EDIT_SETTINGS,
     Permissions.TIMEZONE_VIEW_COMPANY,
     Permissions.TIMEZONE_EDIT_COMPANY,
     Permissions.TIMEZONE_ENFORCE,
     Permissions.BUSINESS_HOURS_EDIT,
-    Permissions.MEMBERS_VIEW,
-    Permissions.MEMBERS_INVITE,
-    Permissions.MEMBERS_MANAGE,
-    Permissions.MEMBERS_REMOVE,
-    Permissions.MEMBERS_ROLE_CHANGE,
-    Permissions.USER_SUSPEND,
-    Permissions.PROJECT_CREATE,
-    Permissions.PROJECT_DELETE,
-    Permissions.PROJECT_EDIT,
     Permissions.PROJECT_VIEW,
-    Permissions.AGENT_CREATE,
-    Permissions.AGENT_DELETE,
-    Permissions.AGENT_EDIT,
-    Permissions.AGENT_VIEW,
-    Permissions.AGENT_REGISTER,
-    Permissions.TRANSFER_CREATE,
-    Permissions.TRANSFER_DELETE,
-    Permissions.TRANSFER_EDIT,
-    Permissions.TRANSFER_VIEW,
-    Permissions.TELEMETRY_VIEW,
-    Permissions.TELEMETRY_EXPORT,
-    Permissions.BILLING_VIEW,
-    Permissions.USER_PREFERENCES_EDIT,
+    Permissions.PROJECT_CREATE,
+    Permissions.PROJECT_EDIT,
+    Permissions.PROJECT_DELETE,
+    Permissions.PROJECT_MANAGE_MEMBERS,
+    Permissions.TEAM_VIEW,
+    Permissions.TEAM_MANAGE,
+    Permissions.TEAM_INVITE,
+    Permissions.JOIN_REQUEST_VIEW,
+    Permissions.JOIN_REQUEST_APPROVE,
+    Permissions.JOIN_REQUEST_REJECT
   ],
   member: [
-    // Basic read permissions and self-service capabilities
     Permissions.COMPANY_VIEW,
+    Permissions.COMPANY_VIEW_SETTINGS,
     Permissions.TIMEZONE_VIEW_COMPANY,
-    Permissions.MEMBERS_VIEW,
     Permissions.PROJECT_VIEW,
-    Permissions.AGENT_VIEW,
-    Permissions.TRANSFER_VIEW,
-    Permissions.TELEMETRY_VIEW,
-    Permissions.USER_PREFERENCES_EDIT, // Users can edit their own preferences
-  ],
-} as const
+    Permissions.TEAM_VIEW
+  ]
+}
 
-export const ProjectRoles = {
+// Project role permissions
+export const ProjectRoles: Record<ProjectRole, Permission[]> = {
   admin: [
-    // Full project control
-    Permissions.PROJECT_EDIT,
     Permissions.PROJECT_VIEW,
-    Permissions.AGENT_CREATE,
-    Permissions.AGENT_DELETE,
-    Permissions.AGENT_EDIT,
-    Permissions.AGENT_VIEW,
-    Permissions.AGENT_REGISTER,
-    Permissions.TRANSFER_CREATE,
-    Permissions.TRANSFER_DELETE,
-    Permissions.TRANSFER_EDIT,
-    Permissions.TRANSFER_VIEW,
-    Permissions.TELEMETRY_VIEW,
-    Permissions.TELEMETRY_EXPORT,
+    Permissions.PROJECT_EDIT,
+    Permissions.PROJECT_DELETE,
+    Permissions.PROJECT_MANAGE_MEMBERS
   ],
   editor: [
-    // Can manage transfers and agents but not project settings
     Permissions.PROJECT_VIEW,
-    Permissions.AGENT_CREATE,
-    Permissions.AGENT_EDIT,
-    Permissions.AGENT_VIEW,
-    Permissions.AGENT_REGISTER,
-    Permissions.TRANSFER_CREATE,
-    Permissions.TRANSFER_EDIT,
-    Permissions.TRANSFER_VIEW,
-    Permissions.TELEMETRY_VIEW,
+    Permissions.PROJECT_EDIT
   ],
   viewer: [
-    // Read-only access
-    Permissions.PROJECT_VIEW,
-    Permissions.AGENT_VIEW,
-    Permissions.TRANSFER_VIEW,
-    Permissions.TELEMETRY_VIEW,
-  ],
-} as const
+    Permissions.PROJECT_VIEW
+  ]
+}
 
-export type CompanyRole = keyof typeof CompanyRoles
-export type ProjectRole = keyof typeof ProjectRoles
+// Helper functions
+export function hasPermission(userPermissions: Permission[], requiredPermission: Permission): boolean {
+  return userPermissions.includes(requiredPermission)
+}
 
-/**
- * Get permissions for a combination of company and project roles
- */
-export function getCombinedPermissions(
-  companyRole: CompanyRole | null,
-  projectRole: ProjectRole | null
-): Permission[] {
+export function getCombinedPermissions(companyRole: CompanyRole | null, projectRole: ProjectRole | null): Permission[] {
   const permissions = new Set<Permission>()
   
-  // Add company permissions
   if (companyRole && CompanyRoles[companyRole]) {
     CompanyRoles[companyRole].forEach(p => permissions.add(p))
   }
   
-  // Add project permissions (if not already covered by company role)
   if (projectRole && ProjectRoles[projectRole]) {
     ProjectRoles[projectRole].forEach(p => permissions.add(p))
   }
@@ -174,65 +103,33 @@ export function getCombinedPermissions(
   return Array.from(permissions)
 }
 
-/**
- * Check if a set of permissions includes a required permission
- */
-export function hasPermission(
-  userPermissions: Permission[],
-  requiredPermission: Permission
-): boolean {
-  return userPermissions.includes(requiredPermission)
+export function getProjectPermissions(projectRole: ProjectRole | null): Permission[] {
+  if (!projectRole || !ProjectRoles[projectRole]) return []
+  return ProjectRoles[projectRole]
 }
 
-/**
- * Check if a set of permissions includes any of the required permissions
- */
-export function hasAnyPermission(
-  userPermissions: Permission[],
-  requiredPermissions: Permission[]
-): boolean {
-  return requiredPermissions.some(p => userPermissions.includes(p))
+// Specific permission checks
+export function canEditCompanyTimezone(permissions: Permission[]): boolean {
+  return hasPermission(permissions, Permissions.TIMEZONE_EDIT_COMPANY)
 }
 
-/**
- * Check if a set of permissions includes all of the required permissions
- */
-export function hasAllPermissions(
-  userPermissions: Permission[],
-  requiredPermissions: Permission[]
-): boolean {
-  return requiredPermissions.every(p => userPermissions.includes(p))
+export function canViewCompanyTimezone(permissions: Permission[]): boolean {
+  return hasPermission(permissions, Permissions.TIMEZONE_VIEW_COMPANY)
 }
 
-/**
- * Timezone-specific permission validation functions
- */
-export function canEditCompanyTimezone(userPermissions: Permission[]): boolean {
-  return hasAnyPermission(userPermissions, [
-    Permissions.TIMEZONE_EDIT_COMPANY,
-    Permissions.COMPANY_EDIT_SETTINGS
-  ])
+export function canEnforceTimezone(permissions: Permission[]): boolean {
+  return hasPermission(permissions, Permissions.TIMEZONE_ENFORCE)
 }
 
-export function canViewCompanyTimezone(userPermissions: Permission[]): boolean {
-  return hasAnyPermission(userPermissions, [
-    Permissions.TIMEZONE_VIEW_COMPANY,
-    Permissions.TIMEZONE_EDIT_COMPANY,
-    Permissions.COMPANY_VIEW_SETTINGS
-  ])
+export function canEditBusinessHours(permissions: Permission[]): boolean {
+  return hasPermission(permissions, Permissions.BUSINESS_HOURS_EDIT)
 }
 
-export function canEnforceTimezone(userPermissions: Permission[]): boolean {
-  return hasPermission(userPermissions, Permissions.TIMEZONE_ENFORCE)
+export function canManageProjectRole(permissions: Permission[]): boolean {
+  return hasPermission(permissions, Permissions.PROJECT_MANAGE_MEMBERS)
 }
 
-export function canEditBusinessHours(userPermissions: Permission[]): boolean {
-  return hasAnyPermission(userPermissions, [
-    Permissions.BUSINESS_HOURS_EDIT,
-    Permissions.TIMEZONE_EDIT_COMPANY
-  ])
-}
-
-export function canEditUserPreferences(userPermissions: Permission[]): boolean {
-  return hasPermission(userPermissions, Permissions.USER_PREFERENCES_EDIT)
+export function canEditUserPreferences(permissions: Permission[]): boolean {
+  // Users can always edit their own preferences
+  return true
 }

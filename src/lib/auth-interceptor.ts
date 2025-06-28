@@ -217,6 +217,10 @@ class TokenRefreshManager {
       clearTimeout(this.activityTimer)
     }
     
+    // Initialize last activity
+    this.sessionConfig.lastActivity = Date.now()
+    SecureStorage.setItem('lastActivity', this.sessionConfig.lastActivity.toString())
+    
     // Check for timeout every minute
     this.activityTimer = setInterval(() => {
       if (this.isSessionTimedOut()) {
@@ -224,19 +228,22 @@ class TokenRefreshManager {
       }
     }, 60 * 1000)
     
-    // Listen for user activity
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart']
-    const updateActivity = () => this.updateActivity()
-    
-    events.forEach(event => {
-      document.addEventListener(event, updateActivity, { passive: true })
-    })
-    
-    // Store cleanup function
-    (this as any).cleanupActivity = () => {
+    // Only add event listeners if document is ready
+    if (typeof document !== 'undefined') {
+      // Listen for user activity
+      const events = ['mousedown', 'keydown', 'scroll', 'touchstart']
+      const updateActivity = () => this.updateActivity()
+      
       events.forEach(event => {
-        document.removeEventListener(event, updateActivity)
+        document.addEventListener(event, updateActivity, { passive: true })
       })
+      
+      // Store cleanup function
+      (this as any).cleanupActivity = () => {
+        events.forEach(event => {
+          document.removeEventListener(event, updateActivity)
+        })
+      }
     }
   }
   

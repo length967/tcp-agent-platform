@@ -54,6 +54,8 @@ export async function handleTeam(req: Request, ctx: Context): Promise<Response> 
   // PATCH /team/members/:id - Update member role or suspension
   // DELETE /team/members/:id - Remove member
   // POST /team/invitations/accept - Accept invitation
+  // GET /team/join-requests - List join requests
+  // PATCH /team/join-requests/:id - Approve/reject join request
   
   const supabase = ctx.supabase!
   const user = ctx.user!
@@ -364,6 +366,107 @@ export async function handleTeam(req: Request, ctx: Context): Promise<Response> 
       }
       
       return new Response(null, { status: 204 })
+    }
+  }
+  
+  // Handle join request routes
+  if (resource === 'join-requests') {
+    // GET /team/join-requests - List join requests
+    if (method === 'GET' && !resourceId) {
+      // Check permission
+      if (!hasPermission(ctx.userPermissions || [], Permissions.MEMBERS_MANAGE)) {
+        throw new AuthorizationError('Insufficient permissions to view join requests')
+      }
+      
+      const { data: joinRequests, error } = await supabase
+        .from('company_join_requests')
+        .select(`
+          id,
+          user_id,
+          email,
+          full_name,
+          message,
+          status,
+          created_at,
+          reviewed_at,
+          reviewed_by,
+          reviewer_notes,
+          user:user_profiles (
+            id,
+            email,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        throw new ApiError(500, `Failed to fetch join requests: ${error.message}`)
+      }
+      
+      return new Response(
+        JSON.stringify({ join_requests: joinRequests || [] }),
+        { 
+          status: 200, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+    
+    // PATCH /team/join-requests/:id - Approve/reject join request
+    if (method === 'PATCH' && resourceId) {
+      // Check permission
+      if (!hasPermission(ctx.userPermissions || [], Permissions.MEMBERS_MANAGE)) {
+        throw new AuthorizationError('Insufficient permissions to review join requests')
+      }
+      
+      const body = await req.json()
+      const { action, notes } = body
+      
+      if (!action || !['approve', 'reject'].includes(action)) {
+        throw new ApiError(400, 'Invalid action. Must be approve or reject')
+      }
+      
+      // Review the join request
+      const { data, error } = await supabase
+        .rpc('review_company_join_request', {
+          p_request_id: resourceId,
+          p_reviewer_id: user.id,
+          p_action: action,
+          p_notes: notes
+        })
+      
+      if (error) {
+        throw new ApiError(500, `Failed to review join request: ${error.message}`)
+      }
+      
+      // Log the security-sensitive action
+      await supabase.rpc('log_audit_event', {
+        p_event_type: 'company.join_request_reviewed',
+        p_event_category: 'security',
+        p_severity: 'medium',
+        p_actor_type: 'user',
+        p_actor_id: user.id,
+        p_action: `${action}_join_request`,
+        p_result: 'success',
+        p_metadata: {
+          request_id: resourceId,
+          action: action,
+          notes: notes
+        },
+        p_company_id: companyId,
+        p_resource_type: 'company_join_request',
+        p_resource_id: resourceId
+      })
+      
+      return new Response(
+        JSON.stringify({ success: true, action }),
+        { 
+          status: 200, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      )
     }
   }
   

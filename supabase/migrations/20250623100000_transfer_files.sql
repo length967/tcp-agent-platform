@@ -55,7 +55,7 @@ CREATE POLICY "Users can create transfer files for their projects" ON transfer_f
             JOIN project_members pm ON pm.project_id = t.project_id
             WHERE t.id = transfer_files.transfer_id
             AND pm.user_id = auth.uid()
-            AND pm.role IN ('admin', 'owner', 'editor')
+            AND pm.role IN ('admin', 'editor')
         )
     );
 
@@ -67,7 +67,7 @@ CREATE POLICY "Users can update their project's transfer files" ON transfer_file
             JOIN project_members pm ON pm.project_id = t.project_id
             WHERE t.id = transfer_files.transfer_id
             AND pm.user_id = auth.uid()
-            AND pm.role IN ('admin', 'owner', 'editor')
+            AND pm.role IN ('admin', 'editor')
         )
     );
 

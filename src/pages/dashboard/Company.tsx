@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator'
 import { toast } from '@/components/ui/use-toast'
 import { api } from '@/lib/api'
 import { useTimezone, TIMEZONES } from '@/contexts/TimezoneContext'
+import { CompanyPrivacySettings } from '@/components/company/CompanyPrivacySettings'
 import { 
   Building2, 
   Shield, 
@@ -59,9 +60,8 @@ export default function Company() {
   const { data: company, isLoading } = useQuery({
     queryKey: ['company'],
     queryFn: async () => {
-      const response = await api.client.get('/company')
-      const data = await response.json()
-      return data.company as CompanyData
+      const response = await api.company.getSettings()
+      return response.company
     }
   })
 
@@ -69,9 +69,8 @@ export default function Company() {
   const { data: members } = useQuery({
     queryKey: ['company', 'members'],
     queryFn: async () => {
-      const response = await api.client.get('/company/members')
-      const data = await response.json()
-      return data.members as CompanyMember[]
+      const response = await api.team.list()
+      return response.members
     },
     enabled: !!company
   })
@@ -82,16 +81,7 @@ export default function Company() {
 
   // Update company mutation
   const updateCompany = useMutation({
-    mutationFn: async (updates: Partial<CompanyData>) => {
-      const response = await api.client.patch('/company', {
-        json: updates
-      })
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to update company')
-      }
-      return response.json()
-    },
+    mutationFn: api.company.updateSettings,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company'] })
       toast({
@@ -404,6 +394,17 @@ export default function Company() {
               </div>
 
               <Separator />
+
+              {/* Company Privacy Settings */}
+              {currentUserRole === 'owner' && (
+                <>
+                  <CompanyPrivacySettings 
+                    companyId={company.id} 
+                    companyName={company.name}
+                  />
+                  <Separator />
+                </>
+              )}
 
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Other Security Settings</h3>

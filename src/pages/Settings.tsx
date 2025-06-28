@@ -123,7 +123,7 @@ export default function Settings() {
   const { data: preferencesData } = useQuery({
     queryKey: ['user', 'preferences'],
     queryFn: async () => {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/v1/user/preferences`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/user/preferences`, {
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,
           'Content-Type': 'application/json',
@@ -140,7 +140,7 @@ export default function Settings() {
   const { data: profileData } = useQuery({
     queryKey: ['user', 'profile'],
     queryFn: async () => {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/v1/user/profile`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/user/profile`, {
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,
           'Content-Type': 'application/json',
@@ -157,7 +157,7 @@ export default function Settings() {
   const { data: sessionsData } = useQuery({
     queryKey: ['user', 'sessions'],
     queryFn: async () => {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/v1/user/sessions`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/user/sessions`, {
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,
           'Content-Type': 'application/json',
@@ -174,7 +174,7 @@ export default function Settings() {
   const { data: apiKeysData } = useQuery({
     queryKey: ['user', 'api-keys'],
     queryFn: async () => {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/v1/user/api-keys`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/user/api-keys`, {
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,
           'Content-Type': 'application/json',
@@ -190,7 +190,7 @@ export default function Settings() {
   // Update preferences mutation
   const updatePreferences = useMutation({
     mutationFn: async (updates: Partial<UserPreferences>) => {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/v1/user/preferences`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/user/preferences`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,
@@ -220,7 +220,7 @@ export default function Settings() {
   // Update profile mutation
   const updateProfile = useMutation({
     mutationFn: async (updates: { full_name?: string; avatar_url?: string | null }) => {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/v1/user/profile`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/user/profile`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,
@@ -250,7 +250,7 @@ export default function Settings() {
   // Change password mutation
   const changePassword = useMutation({
     mutationFn: async (data: { current_password: string; new_password: string }) => {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/v1/user/password`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/user/password`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,
@@ -283,7 +283,7 @@ export default function Settings() {
   // Revoke session mutation
   const revokeSession = useMutation({
     mutationFn: async (sessionId: string) => {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/v1/user/sessions/${sessionId}`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/user/sessions/${sessionId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,
@@ -305,7 +305,7 @@ export default function Settings() {
   // Create API key mutation
   const createApiKey = useMutation({
     mutationFn: async (data: { name: string; expires_days?: number; scopes?: string[] }) => {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/v1/user/api-keys`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/user/api-keys`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,
@@ -329,7 +329,7 @@ export default function Settings() {
   // Revoke API key mutation
   const revokeApiKey = useMutation({
     mutationFn: async (keyId: string) => {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/v1/user/api-keys/${keyId}`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/user/api-keys/${keyId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,

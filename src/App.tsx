@@ -20,6 +20,7 @@ import Transfers from '@/pages/dashboard/Transfers'
 import Team from '@/pages/dashboard/Team'
 import Company from '@/pages/dashboard/Company'
 import Settings from '@/pages/Settings'
+import SmartTransferDashboard from '@/pages/dashboard/SmartTransferDashboard'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -124,6 +125,10 @@ const router = createBrowserRouter([
               {
                 path: 'settings',
                 element: <Settings />,
+              },
+              {
+                path: 'smart-transfers',
+                element: <SmartTransferDashboard />,
               },
             ],
           },

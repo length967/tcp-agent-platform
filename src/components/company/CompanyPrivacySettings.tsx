@@ -1,81 +1,115 @@
-import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { 
   Shield, 
-  Eye, 
-  EyeOff, 
   Users, 
   Globe,
-  Info
+  Info,
+  AlertCircle
 } from 'lucide-react'
+import { api } from '@/lib/api'
+import { useToast } from '@/components/ui/use-toast'
 
 interface CompanyPrivacySettingsProps {
   companyId: string
   companyName: string
-  currentSettings: {
-    discoverable: boolean
-    allowJoinRequests: boolean
-    requireAdminApproval: boolean
-    allowDomainSignup: boolean
-  }
 }
 
 export function CompanyPrivacySettings({ 
   companyId, 
-  companyName, 
-  currentSettings 
+  companyName
 }: CompanyPrivacySettingsProps) {
-  const [settings, setSettings] = useState(currentSettings)
+  const [emailDomain, setEmailDomain] = useState('')
+  const [allowDomainSignup, setAllowDomainSignup] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   
   const queryClient = useQueryClient()
+  const { toast } = useToast()
+
+  // Fetch current privacy settings
+  const { data: privacyData, isLoading } = useQuery({
+    queryKey: ['company', 'privacy', companyId],
+    queryFn: api.company.getPrivacySettings
+  })
+
+  // Update local state when data is fetched
+  useEffect(() => {
+    if (privacyData?.privacy_settings) {
+      setEmailDomain(privacyData.privacy_settings.email_domain || '')
+      setAllowDomainSignup(privacyData.privacy_settings.allow_domain_signup || false)
+    }
+  }, [privacyData])
 
   const updateSettingsMutation = useMutation({
-    mutationFn: async (newSettings: typeof settings) => {
-      // This would be an API call to update company settings
-      // For now, we'll simulate it
-      return new Promise(resolve => setTimeout(resolve, 1000))
-    },
+    mutationFn: api.company.updatePrivacySettings,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['company', companyId] })
+      queryClient.invalidateQueries({ queryKey: ['company', 'privacy', companyId] })
       setHasChanges(false)
+      toast({
+        title: "Privacy settings updated",
+        description: "Your company privacy settings have been successfully updated."
+      })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update privacy settings",
+        variant: "destructive"
+      })
     }
   })
 
-  const handleSettingChange = (key: keyof typeof settings, value: boolean) => {
-    const newSettings = { ...settings, [key]: value }
-    
-    // Auto-adjust dependent settings
-    if (key === 'discoverable' && !value) {
-      // If not discoverable, can't allow join requests
-      newSettings.allowJoinRequests = false
-    }
-    
-    if (key === 'allowJoinRequests' && !value) {
-      // If not allowing join requests, approval setting doesn't matter
-      newSettings.requireAdminApproval = false
-    }
-    
-    if (key === 'allowJoinRequests' && value && !settings.discoverable) {
-      // If enabling join requests, must be discoverable
-      newSettings.discoverable = true
-    }
-    
-    setSettings(newSettings)
+  const handleEmailDomainChange = (value: string) => {
+    setEmailDomain(value)
+    setHasChanges(true)
+  }
+
+  const handleAllowDomainSignupChange = (value: boolean) => {
+    setAllowDomainSignup(value)
     setHasChanges(true)
   }
 
   const handleSave = async () => {
-    try {
-      await updateSettingsMutation.mutateAsync(settings)
-    } catch (error) {
-      console.error('Failed to update settings:', error)
+    const updates: any = {}
+    
+    // Only include changed values
+    if (emailDomain !== (privacyData?.privacy_settings?.email_domain || '')) {
+      updates.email_domain = emailDomain || null
     }
+    
+    if (allowDomainSignup !== (privacyData?.privacy_settings?.allow_domain_signup || false)) {
+      updates.allow_domain_signup = allowDomainSignup
+    }
+    
+    await updateSettingsMutation.mutateAsync(updates)
+  }
+
+  const pendingRequestsCount = privacyData?.privacy_settings?.pending_requests_count || 0
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Company Privacy Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -83,105 +117,51 @@ export function CompanyPrivacySettings({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="w-5 h-5" />
-          Company Privacy & Join Settings
+          Company Privacy Settings
         </CardTitle>
         <CardDescription>
-          Control how users can discover and join {companyName}
+          Control domain-based access for {companyName}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Company Visibility */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                {settings.discoverable ? (
-                  <Eye className="w-4 h-4 text-green-600" />
-                ) : (
-                  <EyeOff className="w-4 h-4 text-gray-600" />
-                )}
-                <Label htmlFor="discoverable" className="text-base font-medium">
-                  Company Discoverable
-                </Label>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Allow users to find your company when they search for similar names during signup
-              </p>
-            </div>
-            <Switch
-              id="discoverable"
-              checked={settings.discoverable}
-              onCheckedChange={(checked) => handleSettingChange('discoverable', checked)}
-            />
-          </div>
-          
-          {!settings.discoverable && (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                When disabled, your company will be hidden from discovery. Users can only join through direct invitations.
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-
-        {/* Join Requests */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-blue-600" />
-                <Label htmlFor="allowJoinRequests" className="text-base font-medium">
-                  Accept Join Requests
-                </Label>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Allow users to request to join your company (requires company to be discoverable)
-              </p>
-            </div>
-            <Switch
-              id="allowJoinRequests"
-              checked={settings.allowJoinRequests}
-              onCheckedChange={(checked) => handleSettingChange('allowJoinRequests', checked)}
-              disabled={!settings.discoverable}
-            />
-          </div>
-        </div>
-
-        {/* Admin Approval */}
-        {settings.allowJoinRequests && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-amber-600" />
-                  <Label htmlFor="requireAdminApproval" className="text-base font-medium">
-                    Require Admin Approval
-                  </Label>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Join requests must be approved by company admins before users can access the company
-                </p>
-              </div>
-              <Switch
-                id="requireAdminApproval"
-                checked={settings.requireAdminApproval}
-                onCheckedChange={(checked) => handleSettingChange('requireAdminApproval', checked)}
-              />
-            </div>
-            
-            {!settings.requireAdminApproval && (
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  When disabled, users will automatically join your company when they request access.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
+        {/* Pending Requests Badge */}
+        {pendingRequestsCount > 0 && (
+          <Alert>
+            <Users className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>You have pending join requests to review</span>
+              <Badge variant="secondary">{pendingRequestsCount} pending</Badge>
+            </AlertDescription>
+          </Alert>
         )}
 
-        {/* Domain Signup */}
+        {/* Email Domain */}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="emailDomain" className="text-base font-medium">
+              Company Email Domain
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              Set your company's email domain (e.g., company.com) to enable automatic member joining
+            </p>
+            <Input
+              id="emailDomain"
+              type="text"
+              placeholder="company.com"
+              value={emailDomain}
+              onChange={(e) => handleEmailDomainChange(e.target.value)}
+              className="max-w-md"
+            />
+            {emailDomain && !emailDomain.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*\.([a-zA-Z]{2,})+$/) && (
+              <p className="text-sm text-red-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                Please enter a valid domain (e.g., company.com)
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Domain Auto-Join */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
@@ -192,15 +172,25 @@ export function CompanyPrivacySettings({
                 </Label>
               </div>
               <p className="text-sm text-muted-foreground">
-                Users with matching email domains can automatically join without approval
+                Users with {emailDomain || 'your domain'} email addresses can automatically join the company
               </p>
             </div>
             <Switch
               id="allowDomainSignup"
-              checked={settings.allowDomainSignup}
-              onCheckedChange={(checked) => handleSettingChange('allowDomainSignup', checked)}
+              checked={allowDomainSignup}
+              onCheckedChange={handleAllowDomainSignupChange}
+              disabled={!emailDomain}
             />
           </div>
+          
+          {allowDomainSignup && emailDomain && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Anyone with an @{emailDomain} email address will automatically become a member when they sign up.
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
 
         {/* Current Configuration Summary */}
@@ -208,30 +198,35 @@ export function CompanyPrivacySettings({
           <h4 className="font-medium mb-2">Current Configuration:</h4>
           <ul className="text-sm space-y-1">
             <li>
-              • Company is {settings.discoverable ? 'visible' : 'hidden'} in user searches
+              • Email domain: {emailDomain || 'Not set'}
             </li>
-            {settings.discoverable && (
-              <li>
-                • Join requests are {settings.allowJoinRequests ? 'accepted' : 'disabled'}
-              </li>
-            )}
-            {settings.allowJoinRequests && (
-              <li>
-                • Admin approval is {settings.requireAdminApproval ? 'required' : 'not required'}
-              </li>
-            )}
             <li>
-              • Domain auto-join is {settings.allowDomainSignup ? 'enabled' : 'disabled'}
+              • Domain auto-join: {allowDomainSignup && emailDomain ? 'Enabled' : 'Disabled'}
             </li>
+            {allowDomainSignup && emailDomain && (
+              <li>
+                • New users with @{emailDomain} emails will automatically join as members
+              </li>
+            )}
           </ul>
         </div>
 
         {/* Save Button */}
         {hasChanges && (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button 
+              variant="outline"
+              onClick={() => {
+                setEmailDomain(privacyData?.privacy_settings?.email_domain || '')
+                setAllowDomainSignup(privacyData?.privacy_settings?.allow_domain_signup || false)
+                setHasChanges(false)
+              }}
+            >
+              Cancel
+            </Button>
             <Button 
               onClick={handleSave}
-              disabled={updateSettingsMutation.isPending}
+              disabled={updateSettingsMutation.isPending || (!!emailDomain && !emailDomain.match(/^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*\.([a-zA-Z]{2,})+$/))}
             >
               {updateSettingsMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>

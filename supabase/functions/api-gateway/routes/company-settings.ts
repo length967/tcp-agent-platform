@@ -33,6 +33,12 @@ const updateCompanySchema = z.object({
   enforce_session_timeout: z.boolean().optional()
 })
 
+// Privacy settings schema with security constraints
+const updatePrivacySettingsSchema = z.object({
+  email_domain: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*\.([a-zA-Z]{2,})+$/).optional(),
+  allow_domain_signup: z.boolean().optional()
+})
+
 export async function handleCompanySettings(req: Request, ctx: Context): Promise<Response> {
   const url = new URL(req.url)
   const pathParts = url.pathname.split('/').filter(Boolean)
@@ -41,6 +47,8 @@ export async function handleCompanySettings(req: Request, ctx: Context): Promise
   // GET /company - Get company settings
   // PATCH /company - Update company settings (admin/owner only)
   // GET /company/timezone-info - Get company timezone information
+  // GET /company/privacy - Get company privacy settings
+  // PATCH /company/privacy - Update company privacy settings (owner only)
   
   const method = req.method
   const resource = pathParts[1] // After /api-gateway/
@@ -60,6 +68,14 @@ export async function handleCompanySettings(req: Request, ctx: Context): Promise
         ], ctx)
         return getCompanyTimezoneInfo(supabase, tenantId)
       }
+      if (subResource === 'privacy') {
+        // Check permission to view company privacy settings
+        await validateCompanyPermissions(supabase, userId, tenantId, [
+          Permissions.COMPANY_VIEW_SETTINGS,
+          Permissions.COMPANY_VIEW
+        ], ctx)
+        return getCompanyPrivacySettings(supabase, tenantId)
+      }
       // Check permission to view company settings
       await validateCompanyPermissions(supabase, userId, tenantId, [
         Permissions.COMPANY_VIEW_SETTINGS,
@@ -68,6 +84,14 @@ export async function handleCompanySettings(req: Request, ctx: Context): Promise
       return getCompanySettings(supabase, tenantId)
     
     case 'PATCH':
+      if (subResource === 'privacy') {
+        // Only owners can update privacy settings
+        await validateCompanyPermissions(supabase, userId, tenantId, [
+          Permissions.COMPANY_EDIT_PRIVACY,
+          Permissions.COMPANY_MANAGE_SECURITY
+        ], ctx)
+        return updateCompanyPrivacySettings(req, supabase, tenantId, userId, ctx)
+      }
       // Check specific permissions for company settings updates
       await validateCompanyPermissions(supabase, userId, tenantId, [
         Permissions.COMPANY_EDIT_SETTINGS,
@@ -131,6 +155,18 @@ async function validateCompanyPermissions(
     // Fallback to role-based check for backwards compatibility
     if (!['admin', 'owner'].includes(membership.role)) {
       throw new AuthorizationError('Insufficient permissions to modify company settings')
+    }
+  }
+  
+  // Special check for owner-only permissions
+  const ownerOnlyPermissions = [
+    Permissions.COMPANY_EDIT_PRIVACY,
+    Permissions.COMPANY_MANAGE_SECURITY
+  ]
+  
+  if (requiredPermissions.some(p => ownerOnlyPermissions.includes(p))) {
+    if (membership.role !== 'owner') {
+      throw new AuthorizationError('Only company owners can perform this action')
     }
   }
 }
@@ -276,6 +312,119 @@ async function updateCompanySettings(
     JSON.stringify({ 
       company,
       message: 'Company settings updated successfully'
+    }),
+    { 
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    }
+  )
+}
+
+async function getCompanyPrivacySettings(supabase: any, companyId: string): Promise<Response> {
+  const { data: company, error } = await supabase
+    .from('companies')
+    .select(`
+      id,
+      name,
+      email_domain,
+      allow_domain_signup
+    `)
+    .eq('id', companyId)
+    .single()
+  
+  if (error) {
+    throw new NotFoundError('Company not found')
+  }
+  
+  // Get pending join requests count
+  const { count: pendingRequests } = await supabase
+    .from('company_join_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('company_id', companyId)
+    .eq('status', 'pending')
+  
+  return new Response(
+    JSON.stringify({ 
+      privacy_settings: {
+        email_domain: company.email_domain,
+        allow_domain_signup: company.allow_domain_signup,
+        pending_requests_count: pendingRequests || 0
+      }
+    }),
+    { 
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    }
+  )
+}
+
+async function updateCompanyPrivacySettings(
+  req: Request,
+  supabase: any,
+  companyId: string,
+  userId: string,
+  ctx?: Context
+): Promise<Response> {
+  // Validate input
+  const validatedData = await validateRequestBody(req, updatePrivacySettingsSchema)
+  
+  // If setting email domain, validate it's unique
+  if (validatedData.email_domain) {
+    const { data: existingCompany } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('email_domain', validatedData.email_domain)
+      .neq('id', companyId)
+      .single()
+    
+    if (existingCompany) {
+      throw new BadRequestError('This email domain is already registered to another company')
+    }
+  }
+  
+  // Update company privacy settings
+  const { data: company, error } = await supabase
+    .from('companies')
+    .update({
+      ...validatedData,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', companyId)
+    .select()
+    .single()
+  
+  if (error) {
+    throw error
+  }
+  
+  // Log the security-sensitive change using the enhanced audit logging
+  if (ctx?.supabase) {
+    await ctx.supabase.rpc('log_audit_event', {
+      p_event_type: 'company.privacy_settings_updated',
+      p_event_category: 'security',
+      p_severity: 'medium',
+      p_actor_type: 'user',
+      p_actor_id: userId,
+      p_action: 'update_privacy_settings',
+      p_result: 'success',
+      p_metadata: {
+        changes: Object.keys(validatedData),
+        old_values: {
+          email_domain: company.email_domain,
+          allow_domain_signup: company.allow_domain_signup
+        },
+        new_values: validatedData
+      },
+      p_company_id: companyId,
+      p_resource_type: 'company',
+      p_resource_id: companyId
+    })
+  }
+  
+  return new Response(
+    JSON.stringify({ 
+      company,
+      message: 'Privacy settings updated successfully'
     }),
     { 
       status: 200,

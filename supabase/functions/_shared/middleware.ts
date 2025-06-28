@@ -66,9 +66,24 @@ export function composeMiddleware(
       return await chain(req, initialCtx)
     } catch (error) {
       console.error('Middleware error:', error)
+      
+      // Include CORS headers in error responses
+      const origin = req.headers.get('origin')
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Max-Age': '86400'
+      }
+      
+      // In development, allow all origins
+      if (origin) {
+        headers['Access-Control-Allow-Origin'] = origin
+      }
+      
       return new Response(
         JSON.stringify({ error: 'Internal server error' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
+        { status: 500, headers }
       )
     }
   }

@@ -19,6 +19,7 @@ import {
   Moon,
   Bell,
   Folder,
+  BrainCircuit
 } from 'lucide-react'
 
 const navigation = [
@@ -28,6 +29,7 @@ const navigation = [
   { name: 'Transfers', href: '/dashboard/transfers', icon: BarChart3 },
   { name: 'Team', href: '/dashboard/team', icon: Users },
   { name: 'Company', href: '/dashboard/company', icon: Building2 },
+  { name: 'Smart Transfers', href: '/dashboard/smart-transfers', icon: BrainCircuit },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 

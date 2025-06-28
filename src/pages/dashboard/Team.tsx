@@ -41,6 +41,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { JoinRequestsManager } from '@/components/company/JoinRequestsManager'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface TeamMember {
   company_id: string
@@ -77,6 +79,7 @@ export default function Team() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member')
   const queryClient = useQueryClient()
+  const { user } = useAuth()
 
   // Fetch team data
   const { data, isLoading, error } = useQuery({
@@ -203,6 +206,9 @@ export default function Team() {
   const canInvite = data?.permissions?.includes('members:invite')
   const canManage = data?.permissions?.includes('members:manage')
   const canRemove = data?.permissions?.includes('members:remove')
+  
+  // Get current user's role
+  const currentUserRole = data?.members?.find((m: TeamMember) => m.user_id === user?.id)?.role
 
   if (isLoading) {
     return (
@@ -402,6 +408,14 @@ export default function Team() {
             </Table>
           </div>
         </div>
+      )}
+
+      {/* Join Requests - Show only to owners and admins */}
+      {(currentUserRole === 'owner' || currentUserRole === 'admin') && members.length > 0 && (
+        <JoinRequestsManager 
+          companyId={members[0].company_id} 
+          companyName="Company"
+        />
       )}
 
       {/* Invite Dialog */}

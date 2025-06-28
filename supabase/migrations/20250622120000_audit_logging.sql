@@ -75,7 +75,7 @@ CREATE POLICY "Users can view relevant audit logs" ON audit_logs
             SELECT 1 FROM project_members pm
             WHERE pm.user_id = auth.uid()
             AND pm.project_id = audit_logs.project_id
-            AND pm.role IN ('admin', 'owner')
+            AND pm.role = 'admin'
         )
     );
 

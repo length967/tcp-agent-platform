@@ -24,39 +24,35 @@ export async function handleProjects(req: Request, ctx: Context): Promise<Respon
   
   const supabase = ctx.supabase!
   const user = ctx.user!
+  const tenant = ctx.tenant!
   
-  // Get user's company
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('company_id')
-    .eq('id', user.id)
-    .single()
-  
-  if (!profile?.company_id) {
+  if (!tenant) {
     throw new ApiError(403, 'User not associated with a company')
   }
+  
+  const companyId = tenant.id
   
   switch (method) {
     case 'GET':
       if (projectId) {
-        return getProject(supabase, projectId, profile.company_id)
+        return getProject(supabase, projectId, companyId)
       }
-      return listProjects(supabase, profile.company_id, user.id)
+      return listProjects(supabase, companyId, user.id)
     
     case 'POST':
-      return createProject(req, supabase, profile.company_id, user.id)
+      return createProject(req, supabase, companyId, user.id)
     
     case 'PUT':
       if (!projectId) {
         throw new ApiError(400, 'Project ID required')
       }
-      return updateProject(req, supabase, projectId, profile.company_id)
+      return updateProject(req, supabase, projectId, companyId)
     
     case 'DELETE':
       if (!projectId) {
         throw new ApiError(400, 'Project ID required')
       }
-      return deleteProject(supabase, projectId, profile.company_id)
+      return deleteProject(supabase, projectId, companyId)
     
     default:
       throw new ApiError(405, 'Method not allowed')
@@ -64,36 +60,79 @@ export async function handleProjects(req: Request, ctx: Context): Promise<Respon
 }
 
 async function listProjects(supabase: any, companyId: string, userId: string): Promise<Response> {
-  // Ensure user has project access
-  const { data: userAccess, error: accessError } = await supabase
-    .rpc('ensure_user_project_access', { user_id_param: userId })
+  // First get projects the user has access to via project_members
+  const { data: memberProjects, error: memberError } = await supabase
+    .from('project_members')
+    .select('project_id, role')
+    .eq('user_id', userId)
   
-  if (accessError) {
-    throw new ApiError(500, `Failed to ensure project access: ${accessError.message}`)
+  if (memberError) {
+    throw new ApiError(500, `Failed to fetch project memberships: ${memberError.message}`)
   }
-
-  // Get all projects the user has access to
-  const { data: projects, error } = await supabase
+  
+  // If no memberships, check if user is company admin/owner
+  const { data: companyMember, error: companyError } = await supabase
+    .from('company_members')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('company_id', companyId)
+    .single()
+  
+  if (companyError && companyError.code !== 'PGRST116') {
+    throw new ApiError(500, `Failed to check company membership: ${companyError.message}`)
+  }
+  
+  // Company admins/owners see all company projects
+  if (companyMember && ['admin', 'owner'].includes(companyMember.role)) {
+    const { data: allProjects, error: allError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+    
+    if (allError) {
+      throw new ApiError(500, `Failed to fetch company projects: ${allError.message}`)
+    }
+    
+    return new Response(
+      JSON.stringify({ 
+        projects: allProjects || []
+      }),
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+  
+  // Regular users only see projects they're members of
+  if (!memberProjects || memberProjects.length === 0) {
+    return new Response(
+      JSON.stringify({ projects: [] }),
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+  
+  const projectIds = memberProjects.map(mp => mp.project_id)
+  const { data: projects, error: projectsError } = await supabase
     .from('projects')
-    .select(`
-      *,
-      project_members!inner(
-        role,
-        added_at,
-        added_by
-      )
-    `)
-    .eq('project_members.user_id', userId)
+    .select('*')
+    .in('id', projectIds)
     .order('created_at', { ascending: false })
   
-  if (error) {
-    throw new ApiError(500, `Failed to fetch projects: ${error.message}`)
+  if (projectsError) {
+    throw new ApiError(500, `Failed to fetch projects: ${projectsError.message}`)
   }
+  
+  // Add user's role to each project
+  const projectsWithRole = projects?.map(project => {
+    const membership = memberProjects.find(mp => mp.project_id === project.id)
+    return {
+      ...project,
+      user_role: membership?.role || null
+    }
+  }) || []
   
   return new Response(
     JSON.stringify({ 
-      projects: projects || [],
-      userAccess: userAccess?.[0] || null
+      projects: projectsWithRole
     }),
     { headers: { 'Content-Type': 'application/json' } }
   )

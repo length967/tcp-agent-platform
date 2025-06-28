@@ -14,7 +14,7 @@ const ALLOWED_ORIGINS = [
 const isDevelopment = Deno.env.get('ENVIRONMENT') === 'development' || !Deno.env.get('ENVIRONMENT')
 
 const corsHeaders = {
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-project-id',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Max-Age': '86400', // 24 hours
 }
@@ -38,22 +38,38 @@ export const withCors: Middleware = async (req, ctx, next) => {
     return new Response('ok', { headers })
   }
   
-  // Process request and add CORS headers to response
-  const response = await next(req, ctx)
-  
-  const origin = req.headers.get('origin')
-  
-  // In development, allow all origins
-  if (isDevelopment && origin) {
-    response.headers.set('Access-Control-Allow-Origin', origin)
-  } else if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    response.headers.set('Access-Control-Allow-Origin', origin)
+  try {
+    // Process request and add CORS headers to response
+    const response = await next(req, ctx)
+    
+    const origin = req.headers.get('origin')
+    
+    // In development, allow all origins
+    if (isDevelopment && origin) {
+      response.headers.set('Access-Control-Allow-Origin', origin)
+    } else if (origin && ALLOWED_ORIGINS.includes(origin)) {
+      response.headers.set('Access-Control-Allow-Origin', origin)
+    }
+    
+    // Add other CORS headers
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      response.headers.set(key, value)
+    })
+    
+    return response
+  } catch (error) {
+    // Even on error, we need to return CORS headers
+    const origin = req.headers.get('origin')
+    const headers = { ...corsHeaders }
+    
+    // In development, allow all origins
+    if (isDevelopment && origin) {
+      headers['Access-Control-Allow-Origin'] = origin
+    } else if (origin && ALLOWED_ORIGINS.includes(origin)) {
+      headers['Access-Control-Allow-Origin'] = origin
+    }
+    
+    // Re-throw the error but ensure CORS headers are set
+    throw error
   }
-  
-  // Add other CORS headers
-  Object.entries(corsHeaders).forEach(([key, value]) => {
-    response.headers.set(key, value)
-  })
-  
-  return response
 }

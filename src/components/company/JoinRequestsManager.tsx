@@ -22,15 +22,17 @@ interface JoinRequest {
   company_id: string
   user_id: string
   email: string
-  full_name: string
-  message: string
+  full_name: string | null
+  message: string | null
   status: 'pending' | 'approved' | 'rejected'
-  requested_at: string
-  reviewed_at?: string
-  reviewer_notes?: string
-  companies: {
+  created_at: string
+  reviewed_at?: string | null
+  reviewer_notes?: string | null
+  user?: {
     id: string
-    name: string
+    email: string
+    full_name: string | null
+    avatar_url: string | null
   }
 }
 
@@ -48,13 +50,11 @@ export function JoinRequestsManager({ companyId, companyName }: JoinRequestsMana
 
   // Fetch join requests
   const { data: requestsData, isLoading } = useQuery({
-    queryKey: ['join-requests', companyId, statusFilter],
+    queryKey: ['team', 'join-requests', companyId],
     queryFn: async () => {
-      const response = await api.auth.getJoinRequests({
-        status: statusFilter,
-        companyId
-      })
-      return response.requests as JoinRequest[]
+      const response = await api.team.getJoinRequests()
+      // Filter by status on the client side since API returns all requests
+      return response.join_requests.filter(req => req.status === statusFilter) as JoinRequest[]
     }
   })
 
@@ -65,10 +65,10 @@ export function JoinRequestsManager({ companyId, companyName }: JoinRequestsMana
       action: 'approve' | 'reject'
       notes?: string 
     }) => {
-      return api.auth.reviewJoinRequest({ requestId, action, notes })
+      return api.team.reviewJoinRequest(requestId, { action, notes })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['join-requests'] })
+      queryClient.invalidateQueries({ queryKey: ['team', 'join-requests'] })
       setSelectedRequest(null)
       setReviewNotes('')
     }
@@ -165,14 +165,14 @@ export function JoinRequestsManager({ companyId, companyName }: JoinRequestsMana
                           <Users className="w-5 h-5 text-blue-600" />
                         </div>
                         <div>
-                          <p className="font-medium">{request.full_name || 'Unknown User'}</p>
+                          <p className="font-medium">{request.user?.full_name || request.full_name || 'Unknown User'}</p>
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <Mail className="w-3 h-3" />
-                            {request.email}
+                            {request.user?.email || request.email}
                           </div>
                           <div className="flex items-center gap-2 text-sm text-gray-500">
                             <Calendar className="w-3 h-3" />
-                            {format(new Date(request.requested_at), 'MMM d, yyyy h:mm a')}
+                            {format(new Date(request.created_at), 'MMM d, yyyy h:mm a')}
                           </div>
                         </div>
                       </div>
@@ -217,19 +217,19 @@ export function JoinRequestsManager({ companyId, companyName }: JoinRequestsMana
           <CardHeader>
             <CardTitle>Review Join Request</CardTitle>
             <CardDescription>
-              Review {selectedRequest.full_name}'s request to join {companyName}
+              Review {selectedRequest.user?.full_name || selectedRequest.full_name || 'Unknown'}'s request to join {companyName}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <strong>Name:</strong> {selectedRequest.full_name || 'Unknown'}
+                <strong>Name:</strong> {selectedRequest.user?.full_name || selectedRequest.full_name || 'Unknown'}
               </div>
               <div>
-                <strong>Email:</strong> {selectedRequest.email}
+                <strong>Email:</strong> {selectedRequest.user?.email || selectedRequest.email}
               </div>
               <div>
-                <strong>Requested:</strong> {format(new Date(selectedRequest.requested_at), 'MMM d, yyyy h:mm a')}
+                <strong>Requested:</strong> {format(new Date(selectedRequest.created_at), 'MMM d, yyyy h:mm a')}
               </div>
             </div>
             
@@ -248,7 +248,7 @@ export function JoinRequestsManager({ companyId, companyName }: JoinRequestsMana
               </label>
               <Textarea
                 value={reviewNotes}
-                onChange={(e) => setReviewNotes(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReviewNotes(e.target.value)}
                 placeholder="Add notes about your decision..."
                 className="min-h-[80px]"
               />

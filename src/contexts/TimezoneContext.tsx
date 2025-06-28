@@ -114,7 +114,7 @@ export function TimezoneProvider({ children }: { children: ReactNode }) {
   const { data: userPreferences, isLoading: preferencesLoading } = useQuery({
     queryKey: ['user', 'preferences'],
     queryFn: async () => {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/v1/user/preferences`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/api-gateway/user/preferences`, {
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,
           'Content-Type': 'application/json',

@@ -68,31 +68,32 @@ export const withTenant: Middleware = async (req, ctx, next) => {
     // Get user's company information
     const { data: profile, error: profileError } = await ctx.supabase
       .from('user_profiles')
-      .select(`
-        company_id,
-        companies!user_profiles_company_id_fkey (
-          id,
-          name,
-          slug,
-          subscription_status,
-          telemetry_retention_days,
-          telemetry_update_interval_ms
-        )
-      `)
+      .select('company_id')
       .eq('id', ctx.user.id)
       .single()
     
-    if (profileError || !profile?.companies) {
+    if (profileError || !profile?.company_id) {
       throw new AuthenticationError('User is not associated with a company')
+    }
+    
+    // Get company details
+    const { data: company, error: companyError } = await ctx.supabase
+      .from('companies')
+      .select('id, name, slug, subscription_status, telemetry_retention_days, telemetry_update_interval_ms')
+      .eq('id', profile.company_id)
+      .single()
+    
+    if (companyError || !company) {
+      throw new AuthenticationError('Company not found')
     }
     
     // Add tenant to context
     ctx.tenant = {
-      id: profile.companies.id,
-      name: profile.companies.name,
-      slug: profile.companies.slug,
-      plan: profile.companies.subscription_status || 'free',
-      subscriptionStatus: profile.companies.subscription_status || 'free'
+      id: company.id,
+      name: company.name,
+      slug: company.slug,
+      plan: company.subscription_status || 'free',
+      subscriptionStatus: company.subscription_status || 'free'
     }
     
     return next(req, ctx)

@@ -1,5 +1,5 @@
 import { Context } from '../../_shared/middleware.ts'
-import { BadRequestError, NotFoundError } from '../../_shared/errors.ts'
+import { BadRequestError, NotFoundError, AuthorizationError } from '../../_shared/errors.ts'
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 import * as bcrypt from 'https://deno.land/x/bcrypt@v0.4.1/mod.ts'
 import { 
@@ -34,23 +34,23 @@ export async function handleUserSettings(req: Request, ctx: Context): Promise<Re
   const pathParts = url.pathname.split('/').filter(Boolean)
   
   // Routes:
-  // GET /v1/user/preferences - Get user preferences
-  // PUT /v1/user/preferences - Update user preferences
-  // GET /v1/user/profile - Get user profile
-  // PUT /v1/user/profile - Update user profile
-  // PUT /v1/user/password - Change password
-  // GET /v1/user/sessions - Get active sessions
-  // DELETE /v1/user/sessions/:id - Revoke session
-  // GET /v1/user/api-keys - List API keys
-  // POST /v1/user/api-keys - Create API key
-  // DELETE /v1/user/api-keys/:id - Revoke API key
+  // GET /user/preferences - Get user preferences
+  // PUT /user/preferences - Update user preferences
+  // GET /user/profile - Get user profile
+  // PUT /user/profile - Update user profile
+  // PUT /user/password - Change password
+  // GET /user/sessions - Get active sessions
+  // DELETE /user/sessions/:id - Revoke session
+  // GET /user/api-keys - List API keys
+  // POST /user/api-keys - Create API key
+  // DELETE /user/api-keys/:id - Revoke API key
   
   const method = req.method
-  const resource = pathParts[2] // After /api-gateway/v1/user/
+  const resource = pathParts[2] // After /api-gateway/user/
   const resourceId = pathParts[3]
   
   const supabase = ctx.supabase!
-  const userId = ctx.userId!
+  const userId = ctx.user!.id
   
   switch (resource) {
     case 'preferences':

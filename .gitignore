@@ -34,3 +34,7 @@ supabase/.temp
 
 # Database types (generated)
 src/lib/database.types.ts
+
+# Gemini
+GEMINI.md
+ai/GEMINI.md

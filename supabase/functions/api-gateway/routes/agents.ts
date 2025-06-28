@@ -39,22 +39,17 @@ export async function handleAgents(req: Request, ctx: Context): Promise<Response
     
     if (!projectId) {
       // Fallback: Get user's first accessible project
-      const { data: projects } = await supabase
-        .from('projects')
-        .select('id')
-        .in('id', supabase
-          .from('project_members')
-          .select('project_id')
-          .eq('user_id', ctx.user!.id)
-        )
-        .order('created_at', { ascending: true })
+      const { data: projectMembers } = await ctx.supabase
+        .from('project_members')
+        .select('project_id')
+        .eq('user_id', ctx.user!.id)
         .limit(1)
       
-      if (!projects || projects.length === 0) {
+      if (!projectMembers || projectMembers.length === 0) {
         throw new ApiError(404, 'No accessible projects found')
       }
       
-      projectId = projects[0].id
+      projectId = projectMembers[0].project_id
     }
   }
   

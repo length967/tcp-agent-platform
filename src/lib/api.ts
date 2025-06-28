@@ -141,6 +141,43 @@ export const api = {
     }
   },
   
+  // Company Settings
+  company: {
+    getSettings: () => 
+      apiRequest<{ company: any }>('/company'),
+    
+    updateSettings: (data: { 
+      name?: string
+      default_timezone?: string
+      enforce_timezone?: boolean
+      business_hours_start?: string
+      business_hours_end?: string
+      business_days?: number[]
+      session_timeout_minutes?: number
+      enforce_session_timeout?: boolean
+    }) =>
+      apiRequest<{ company: any; message: string }>('/company', {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      }),
+    
+    getPrivacySettings: () =>
+      apiRequest<{ privacy_settings: {
+        email_domain: string | null
+        allow_domain_signup: boolean
+        pending_requests_count: number
+      } }>('/company/privacy'),
+    
+    updatePrivacySettings: (data: {
+      email_domain?: string
+      allow_domain_signup?: boolean
+    }) =>
+      apiRequest<{ company: any; message: string }>('/company/privacy', {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      })
+  },
+  
   // Authentication
   auth: {
     checkDomainAccess: (email: string) =>
@@ -368,6 +405,18 @@ export const api = {
       }>('/team/invitations/accept', {
         method: 'POST',
         body: JSON.stringify({ token })
+      }),
+    
+    getJoinRequests: () =>
+      apiRequest<{ join_requests: any[] }>('/team/join-requests'),
+    
+    reviewJoinRequest: (requestId: string, data: {
+      action: 'approve' | 'reject';
+      notes?: string;
+    }) =>
+      apiRequest<{ success: boolean; action: string }>(`/team/join-requests/${requestId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
       })
   }
 }
