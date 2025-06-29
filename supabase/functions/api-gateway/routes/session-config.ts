@@ -16,7 +16,18 @@ export async function handleSessionConfig(req: Request, ctx: Context): Promise<R
   
   const supabase = ctx.supabase!
   const userId = ctx.user!.id
-  const tenantId = ctx.tenant?.id
+  
+  // Get company ID from user profile since withTenant middleware isn't used here
+  let tenantId: string | null = null
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('company_id')
+    .eq('id', userId)
+    .single()
+  
+  if (profile?.company_id) {
+    tenantId = profile.company_id
+  }
   
   try {
     // Get user preferences
@@ -64,13 +75,11 @@ export async function handleSessionConfig(req: Request, ctx: Context): Promise<R
     
     return new Response(
       JSON.stringify({
-        config: {
-          timeoutMinutes,
-          isCompanyEnforced,
-          companyTimeout,
-          userTimeout: userProfile?.session_timeout_minutes || null,
-          source
-        }
+        timeoutMinutes,
+        isCompanyEnforced,
+        companyTimeout,
+        userTimeout: userProfile?.session_timeout_minutes || null,
+        source
       }),
       { 
         status: 200,

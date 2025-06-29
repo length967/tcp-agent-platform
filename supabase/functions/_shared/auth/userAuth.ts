@@ -96,6 +96,22 @@ export const withTenant: Middleware = async (req, ctx, next) => {
       subscriptionStatus: company.subscription_status || 'free'
     }
     
+    // Get user's company role and permissions
+    const { data: membership } = await ctx.supabase
+      .from('company_members')
+      .select('role')
+      .eq('user_id', ctx.user.id)
+      .eq('company_id', company.id)
+      .single()
+    
+    if (membership) {
+      // Get permissions based on company role
+      const { CompanyRoles } = await import('../permissions.ts')
+      ctx.userPermissions = CompanyRoles[membership.role] || []
+    } else {
+      ctx.userPermissions = []
+    }
+    
     return next(req, ctx)
   } catch (error) {
     if (error instanceof AuthenticationError) {

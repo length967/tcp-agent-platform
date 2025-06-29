@@ -149,7 +149,7 @@ async function updatePreferences(
   ctx?: any
 ): Promise<Response> {
   // Check permission to edit user preferences
-  if (ctx?.userPermissions && !canEditUserPreferences(ctx.userPermissions)) {
+  if (ctx?.userPermissions && !hasPermission(ctx.userPermissions, Permissions.USER_EDIT_PREFERENCES)) {
     throw new AuthorizationError('Insufficient permissions to edit user preferences')
   }
   
@@ -173,18 +173,27 @@ async function updatePreferences(
   }
   
   // Check company timezone enforcement
-  if (validatedData.timezone && ctx?.tenant) {
-    const { data: companySettings } = await supabase
-      .from('companies')
-      .select('enforce_timezone, default_timezone')
-      .eq('id', ctx.tenant.id)
+  if (validatedData.timezone) {
+    // Get user's company ID
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('company_id')
+      .eq('id', userId)
       .single()
     
-    if (companySettings?.enforce_timezone && 
-        companySettings.default_timezone !== validatedData.timezone) {
-      throw new AuthorizationError(
-        'Company timezone enforcement is enabled. Cannot override company timezone.'
-      )
+    if (userProfile?.company_id) {
+      const { data: companySettings } = await supabase
+        .from('companies')
+        .select('enforce_timezone, default_timezone')
+        .eq('id', userProfile.company_id)
+        .single()
+      
+      if (companySettings?.enforce_timezone && 
+          companySettings.default_timezone !== validatedData.timezone) {
+        throw new AuthorizationError(
+          'Company timezone enforcement is enabled. Cannot override company timezone.'
+        )
+      }
     }
   }
   

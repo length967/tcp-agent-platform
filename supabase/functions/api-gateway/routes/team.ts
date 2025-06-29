@@ -135,19 +135,22 @@ export async function handleTeam(req: Request, ctx: Context): Promise<Response> 
       const body = await req.json()
       const validatedData = inviteSchema.parse(body)
       
-      // Check if email already exists in company
-      const { data: existingUser } = await supabase.auth.admin.getUserByEmail(validatedData.email)
-      if (existingUser?.user) {
-        const { data: existingMember } = await supabase
-          .from('company_members')
-          .select('user_id')
-          .eq('company_id', companyId)
-          .eq('user_id', existingUser.user.id)
-          .single()
-        
-        if (existingMember) {
-          throw new ApiError(400, 'User is already a member of this company')
-        }
+      // Check if user with this email is already a member
+      const { data: existingMember } = await supabase
+        .from('user_profiles')
+        .select(`
+          id,
+          company_members!inner(
+            user_id,
+            company_id
+          )
+        `)
+        .eq('email', validatedData.email)
+        .eq('company_members.company_id', companyId)
+        .single()
+      
+      if (existingMember) {
+        throw new ApiError(400, 'User is already a member of this company')
       }
       
       // Create invitation

@@ -41,7 +41,7 @@ tcp-agent-platform/
 ├── supabase/
 │   ├── migrations/            # Database schema
 │   └── functions/            # Edge Functions
-└── docs/                     # Documentation
+└── docs/                     # Documentation (see docs/README.md)
 ```
 
 ## Getting Started
@@ -76,12 +76,15 @@ STRIPE_SECRET_KEY=your_stripe_key
 
 ## Documentation
 
-- [Architecture Overview](docs/architecture.md)
-- [Database Schema](docs/database-schema.md)
-- [Security Model](docs/security.md)
-- [API Reference](docs/api-reference.md)
-- [MCP Integration](docs/mcp-integration.md)
-- [Deployment Guide](docs/deployment.md)
+See the [docs/README.md](docs/README.md) for complete documentation index.
+
+### Quick Links
+- [Current Status](docs/CURRENT_STATUS_20250129.md) - Latest project status
+- [Setup Documentation](docs/SETUP_DOCUMENTATION.md) - Getting started guide
+- [Architecture Overview](docs/architecture.md) - System design
+- [Database Schema](docs/database-schema.md) - Data model
+- [Security Model](docs/security.md) - Security architecture
+- [API Reference](docs/api-v1-reference.md) - REST API documentation
 
 ## License
 

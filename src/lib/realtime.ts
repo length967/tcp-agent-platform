@@ -239,5 +239,6 @@ export class RealtimeManager {
   }
 }
 
-// Singleton instance
-export const realtimeManager = new RealtimeManager()
+// Singleton instance - disabled in local development
+const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+export const realtimeManager = isLocalDev ? null : new RealtimeManager()

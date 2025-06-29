@@ -30,12 +30,19 @@ export async function handleTransfers(req: Request, ctx: Context): Promise<Respo
     throw new ApiError(401, 'Authentication required')
   }
   
-  const projectId = ctx.user?.project_id || ctx.agent?.project_id
-  if (!projectId) {
-    throw new ApiError(400, 'No project context')
-  }
+  // Get project ID from query params or headers
+  const projectId = url.searchParams.get('project_id') || req.headers.get('X-Project-ID')
   
   const supabase = ctx.supabase!
+  
+  // For listing transfers without a specific project, return all transfers the user has access to
+  if (!projectId && method === 'GET' && !transferId) {
+    return listAllUserTransfers(supabase, ctx)
+  }
+  
+  if (!projectId && method !== 'GET') {
+    throw new ApiError(400, 'Project ID required')
+  }
   
   switch (method) {
     case 'GET':
@@ -92,6 +99,56 @@ async function listTransfers(
   
   return new Response(
     JSON.stringify({ transfers }),
+    { headers: { 'Content-Type': 'application/json' } }
+  )
+}
+
+async function listAllUserTransfers(
+  supabase: any,
+  ctx: Context
+): Promise<Response> {
+  if (!ctx.user || !ctx.tenant) {
+    throw new ApiError(401, 'User authentication required')
+  }
+  
+  // Get all projects the user has access to
+  const { data: userProjects, error: projectError } = await supabase
+    .from('project_members')
+    .select('project_id')
+    .eq('user_id', ctx.user.id)
+  
+  if (projectError) {
+    throw new ApiError(500, `Failed to fetch user projects: ${projectError.message}`)
+  }
+  
+  if (!userProjects || userProjects.length === 0) {
+    return new Response(
+      JSON.stringify({ transfers: [] }),
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+  
+  const projectIds = userProjects.map(p => p.project_id)
+  
+  // Get transfers from all user's projects
+  const { data: transfers, error } = await supabase
+    .from('transfers')
+    .select(`
+      *,
+      project:projects(id, name),
+      source_agent:agents!source_agent_id(id, name),
+      destination_agent:agents!destination_agent_id(id, name)
+    `)
+    .in('project_id', projectIds)
+    .order('created_at', { ascending: false })
+    .limit(50)
+  
+  if (error) {
+    throw new ApiError(500, `Failed to fetch transfers: ${error.message}`)
+  }
+  
+  return new Response(
+    JSON.stringify({ transfers: transfers || [] }),
     { headers: { 'Content-Type': 'application/json' } }
   )
 }

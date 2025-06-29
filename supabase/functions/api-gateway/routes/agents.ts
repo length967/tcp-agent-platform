@@ -37,12 +37,12 @@ export async function handleAgents(req: Request, ctx: Context): Promise<Response
     // Try to get project ID from header first
     projectId = req.headers.get('x-project-id')
     
-    if (!projectId) {
+    if (!projectId && ctx.user) {
       // Fallback: Get user's first accessible project
       const { data: projectMembers } = await ctx.supabase
         .from('project_members')
         .select('project_id')
-        .eq('user_id', ctx.user!.id)
+        .eq('user_id', ctx.user.id)
         .limit(1)
       
       if (!projectMembers || projectMembers.length === 0) {
@@ -50,6 +50,13 @@ export async function handleAgents(req: Request, ctx: Context): Promise<Response
       }
       
       projectId = projectMembers[0].project_id
+    } else if (!projectId && ctx.agent) {
+      // If agent is authenticated, use their project
+      projectId = ctx.agent.project_id
+    }
+    
+    if (!projectId) {
+      throw new ApiError(400, 'Project ID required')
     }
   }
   
@@ -69,9 +76,15 @@ export async function handleAgents(req: Request, ctx: Context): Promise<Response
     
     case 'POST':
       if (agentId && action === 'register') {
-        return generateRegistrationToken(supabase, agentId, projectId!, ctx.user!)
+        if (!ctx.user) {
+          throw new ApiError(401, 'User authentication required')
+        }
+        return generateRegistrationToken(supabase, agentId, projectId!, ctx.user)
       }
-      return createAgent(req, supabase, projectId!, ctx.user!)
+      if (!ctx.user) {
+        throw new ApiError(401, 'User authentication required')
+      }
+      return createAgent(req, supabase, projectId!, ctx.user)
     
     case 'PUT':
       if (!agentId) {

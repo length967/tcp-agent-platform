@@ -17,16 +17,14 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     detectSessionInUrl: true
   },
-  realtime: {
-    params: {
-      eventsPerSecond: 10
-    },
-    // Disable realtime in local development
-    ...(isLocalDev && { 
-      autoConnect: false,
-      timeout: 0
-    })
-  }
+  // Completely disable realtime in local development
+  ...(isLocalDev ? {} : {
+    realtime: {
+      params: {
+        eventsPerSecond: 10
+      }
+    }
+  })
 })
 
 // Helper functions for auth
