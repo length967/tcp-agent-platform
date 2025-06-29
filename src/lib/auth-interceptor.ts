@@ -234,15 +234,19 @@ class TokenRefreshManager {
       const events = ['mousedown', 'keydown', 'scroll', 'touchstart']
       const updateActivity = () => this.updateActivity()
       
-      events.forEach(event => {
-        document.addEventListener(event, updateActivity, { passive: true })
-      })
-      
-      // Store cleanup function
-      (this as any).cleanupActivity = () => {
+      if (Array.isArray(events)) {
         events.forEach(event => {
-          document.removeEventListener(event, updateActivity)
+          document.addEventListener(event, updateActivity, { passive: true })
         })
+        
+        // Store cleanup function
+        (this as any).cleanupActivity = () => {
+          if (Array.isArray(events)) {
+            events.forEach(event => {
+              document.removeEventListener(event, updateActivity)
+            })
+          }
+        }
       }
     }
   }
